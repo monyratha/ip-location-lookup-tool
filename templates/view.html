@@ -17,33 +17,35 @@
         <a href="/download/{{ filename }}" class="btn btn-primary btn-sm">Download</a>
     </div>
     {% if dynamic_counts %}
-    <div class="mb-3">
-        <strong>Classification Summary:</strong>
-        <table class="table table-sm summary-table w-auto">
-            <thead>
-                <tr><th>Classification</th><th>IP Count</th><th>Total Views</th></tr>
-            </thead>
-            <tbody>
-                {% for key, data in dynamic_counts.items() %}
-                <tr>
-                    <td>{{ key.replace('_', ' ').title() }}</td>
-                    <td>{{ data.ip_address_count }}</td>
-                    <td>{{ data.total_views }}</td>
-                </tr>
+    <div class="row gx-4 mb-3">
+        <div class="col-md-6">
+            <h5 class="mb-2">Classification Summary</h5>
+            <table class="table table-sm summary-table w-auto">
+                <thead>
+                    <tr><th>Classification</th><th>IP Count</th><th>Total Views</th></tr>
+                </thead>
+                <tbody>
+                    {% for key, data in dynamic_counts.items() %}
+                    <tr>
+                        <td>{{ key.replace('_', ' ').title() }}</td>
+                        <td>{{ data.ip_address_count }}</td>
+                        <td>{{ data.total_views }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if classification_rules %}
+        <div class="col-md-6">
+            <h5 class="mb-2">Classification Rules</h5>
+            <ul class="mb-0">
+                {% for rule in classification_rules %}
+                <li>{{ rule }}</li>
                 {% endfor %}
-            </tbody>
-        </table>
+            </ul>
+        </div>
+        {% endif %}
     </div>
-    {% if classification_rules %}
-    <div class="mb-3">
-        <strong>Classification Rules:</strong>
-        <ul>
-            {% for rule in classification_rules %}
-            <li>{{ rule }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
     {% endif %}
 
     <div class="table-responsive">
