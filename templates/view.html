@@ -14,6 +14,16 @@
     <div class="mb-3">
         <a href="/download/{{ filename }}" class="btn btn-primary btn-sm">Download</a>
     </div>
+    {% if dynamic_counts %}
+    <div class="mb-3">
+        <strong>Classification Summary:</strong>
+        <ul>
+            {% for key, data in dynamic_counts.items() %}
+            <li>{{ key.replace('_', ' ').title() }} - {{ data.ip_address_count }} IPs, {{ data.total_views }} views</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
     {{ table | safe }}
 </div>
 {% endblock %}
