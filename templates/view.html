@@ -2,15 +2,7 @@
 {% block title %}View {{ filename }}{% endblock %}
 {% block extra_head %}
 <style>
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-    .download-btn { background: #007cba; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; }
-    .download-btn:hover { background: #005a87; }
-    a { color: #007cba; text-decoration: none; }
-    a:hover { text-decoration: underline; }
 </style>
 {% endblock %}
 {% block content %}
@@ -18,9 +10,10 @@
     <h1>📄 {{ filename }}</h1>
 </div>
 
-<div style="margin-bottom: 15px;">
-    <a href="/download/{{ filename }}" class="download-btn">Download</a>
+<div class="card p-4 shadow-sm">
+    <div class="mb-3">
+        <a href="/download/{{ filename }}" class="btn btn-primary btn-sm">Download</a>
+    </div>
+    {{ table | safe }}
 </div>
-
-{{ table | safe }}
 {% endblock %}

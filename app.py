@@ -479,7 +479,7 @@ def view_result(filename):
         df = pd.read_csv(filepath)
     except Exception as e:
         return str(e), 500
-    table_html = df.to_html(index=False)
+    table_html = df.to_html(index=False, classes="table table-bordered table-sm table-hover table-striped")
     return render_template('view.html', filename=filename, table=table_html)
 
 
