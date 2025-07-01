@@ -3,6 +3,7 @@
 {% block extra_head %}
 <style>
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    .summary-table th, .summary-table td { padding: 4px 8px; }
 </style>
 {% endblock %}
 {% block content %}
@@ -17,11 +18,20 @@
     {% if dynamic_counts %}
     <div class="mb-3">
         <strong>Classification Summary:</strong>
-        <ul>
-            {% for key, data in dynamic_counts.items() %}
-            <li>{{ key.replace('_', ' ').title() }} - {{ data.ip_address_count }} IPs, {{ data.total_views }} views</li>
-            {% endfor %}
-        </ul>
+        <table class="table table-sm summary-table w-auto">
+            <thead>
+                <tr><th>Classification</th><th>IP Count</th><th>Total Views</th></tr>
+            </thead>
+            <tbody>
+                {% for key, data in dynamic_counts.items() %}
+                <tr>
+                    <td>{{ key.replace('_', ' ').title() }}</td>
+                    <td>{{ data.ip_address_count }}</td>
+                    <td>{{ data.total_views }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% if classification_rules %}
     <div class="mb-3">
@@ -34,6 +44,26 @@
     </div>
     {% endif %}
     {% endif %}
-    {{ table | safe }}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm table-hover table-striped">
+            <thead>
+                <tr>
+                    {% for col in columns %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in records %}
+                <tr class="{% if row.dynamic_classification == 'likely_fake' %}table-danger{% elif row.dynamic_classification == 'likely_real' %}table-success{% endif %}">
+                    {% for col in columns %}
+                    <td>{{ row[col] }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

@@ -520,10 +520,17 @@ def view_result(filename):
             "Otherwise likely real",
         ]
 
-    table_html = df.to_html(index=False, classes="table table-bordered table-sm table-hover table-striped")
-    return render_template('view.html', filename=filename, table=table_html,
-                           dynamic_counts=dynamic_counts,
-                           classification_rules=classification_rules)
+    records = df.to_dict(orient='records')
+    columns = df.columns.tolist()
+
+    return render_template(
+        'view.html',
+        filename=filename,
+        records=records,
+        columns=columns,
+        dynamic_counts=dynamic_counts,
+        classification_rules=classification_rules
+    )
 
 
 @app.route('/download/<filename>')
