@@ -12,6 +12,15 @@
 <div class="processing-message" id="processingMessage">⚠️ Processing in progress - Please don't leave this page</div>
 
 <div class="section card p-4 shadow-sm">
+    <h3 class="mb-3">Project</h3>
+    <div class="input-group mb-3" style="max-width: 400px;">
+        <select id="projectSelect" class="form-select"></select>
+        <input type="text" id="newProject" class="form-control" placeholder="New project">
+        <button class="btn btn-secondary" onclick="createProject()">Set</button>
+    </div>
+</div>
+
+<div class="section card p-4 shadow-sm">
     <h3 class="mb-3">Single IP Lookup</h3>
     <div class="input-group mb-3" style="max-width: 300px;">
         <input type="text" id="ipInput" class="form-control" placeholder="Enter IP address">
@@ -33,6 +42,36 @@
 
 <script>
     let isProcessing = false;
+
+    async function loadProjects() {
+        const response = await fetch('/project');
+        const data = await response.json();
+        const select = document.getElementById('projectSelect');
+        select.innerHTML = '';
+        data.projects.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p;
+            option.textContent = p;
+            if (p === data.current) option.selected = true;
+            select.appendChild(option);
+        });
+    }
+
+    async function createProject() {
+        const nameField = document.getElementById('newProject');
+        const select = document.getElementById('projectSelect');
+        const name = nameField.value.trim() || select.value;
+        if (!name) return;
+        await fetch('/project', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        nameField.value = '';
+        await loadProjects();
+    }
+
+    window.addEventListener('load', loadProjects);
 
     // Prevent page unload during processing
     window.addEventListener('beforeunload', function(e) {

@@ -10,6 +10,11 @@
 {% block content %}
 <div class="header">
     <h1>📁 Processed Files</h1>
+    <div class="d-flex" style="gap:5px;">
+        <select id="projectSelect" class="form-select form-select-sm"></select>
+        <input type="text" id="newProject" class="form-control form-control-sm" placeholder="New project">
+        <button class="btn btn-secondary btn-sm" onclick="createProject()">Set</button>
+    </div>
 </div>
 
 {% if files %}
@@ -47,6 +52,37 @@
 {% endif %}
 
 <script>
+    async function loadProjects() {
+        const res = await fetch('/project');
+        const data = await res.json();
+        const select = document.getElementById('projectSelect');
+        select.innerHTML = '';
+        data.projects.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p;
+            option.textContent = p;
+            if (p === data.current) option.selected = true;
+            select.appendChild(option);
+        });
+    }
+
+    async function createProject() {
+        const nameField = document.getElementById('newProject');
+        const select = document.getElementById('projectSelect');
+        const name = nameField.value.trim() || select.value;
+        if (!name) return;
+        await fetch('/project', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        nameField.value = '';
+        await loadProjects();
+        location.reload();
+    }
+
+    window.addEventListener('load', loadProjects);
+
     async function deleteFile(filename) {
         if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
 

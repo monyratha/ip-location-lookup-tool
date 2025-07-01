@@ -18,6 +18,37 @@ DB_FILE = os.getenv("DB_FILE", "ip_cache.db")
 PORT = int(os.getenv("PORT", "8080"))
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
+# --- Project/session management ---
+CURRENT_PROJECT_FILE = 'current_project.txt'
+
+
+def set_current_project(name: str) -> None:
+    """Set the active project and ensure its directory exists."""
+    os.makedirs(os.path.join('results', name), exist_ok=True)
+    with open(CURRENT_PROJECT_FILE, 'w') as f:
+        f.write(name)
+
+
+def get_current_project() -> str:
+    """Retrieve the active project, defaulting to 'default'."""
+    if not os.path.exists(CURRENT_PROJECT_FILE):
+        set_current_project('default')
+    with open(CURRENT_PROJECT_FILE) as f:
+        name = f.read().strip() or 'default'
+    os.makedirs(os.path.join('results', name), exist_ok=True)
+    return name
+
+
+def list_projects() -> list:
+    """Return a sorted list of existing projects."""
+    if not os.path.exists('results'):
+        return []
+    projects = [d for d in os.listdir('results') if os.path.isdir(os.path.join('results', d))]
+    return sorted(projects)
+
+# Ensure a project directory exists on startup
+get_current_project()
+
 
 @app.template_filter('timestamp_to_date')
 def timestamp_to_date(timestamp):
@@ -233,7 +264,21 @@ def get_ip_location(ip, use_delay=False):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', current_project=get_current_project(), projects=list_projects())
+
+
+@app.route('/project', methods=['GET', 'POST'])
+def manage_project():
+    """Get or set the active project."""
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        name = data.get('name', '').strip()
+        if not name:
+            return jsonify({'error': 'name required'}), 400
+        set_current_project(name)
+        return jsonify({'current': name})
+
+    return jsonify({'current': get_current_project(), 'projects': list_projects()})
 
 
 @app.route('/stats')
@@ -437,7 +482,9 @@ def upload_csv():
                 df[['country', 'region', 'city']] = locations
 
                 output_filename = f"processed_{file_info['filename']}"
-                output_path = os.path.join('results', output_filename)
+                project_dir = os.path.join('results', get_current_project())
+                os.makedirs(project_dir, exist_ok=True)
+                output_path = os.path.join(project_dir, output_filename)
                 df.to_csv(output_path, index=False)
 
                 yield f"data: {json.dumps({'type': 'file_complete', 'filename': file_info['filename'], 'status': 'success', 'message': f'Processed {file_ips} IPs'})}\n\n"
@@ -452,13 +499,17 @@ def upload_csv():
 
 @app.route('/results')
 def list_results():
-    if not os.path.exists('results'):
-        return render_template('results.html', files=[])
+    project = get_current_project()
+    base_dir = os.path.join('results', project)
+    os.makedirs(base_dir, exist_ok=True)
+
+    if not os.path.exists(base_dir):
+        return render_template('results.html', files=[], current_project=project, projects=list_projects())
 
     files = []
-    for filename in os.listdir('results'):
+    for filename in os.listdir(base_dir):
         if filename.endswith('.csv'):
-            filepath = os.path.join('results', filename)
+            filepath = os.path.join(base_dir, filename)
             stat = os.stat(filepath)
             files.append({
                 'name': filename,
@@ -467,12 +518,13 @@ def list_results():
             })
 
     files.sort(key=lambda x: x['modified'], reverse=True)
-    return render_template('results.html', files=files)
+    return render_template('results.html', files=files, current_project=project, projects=list_projects())
 
 
 @app.route('/view/<filename>')
 def view_result(filename):
-    filepath = os.path.join('results', filename)
+    project_dir = os.path.join('results', get_current_project())
+    filepath = os.path.join(project_dir, filename)
     if not os.path.exists(filepath):
         return 'File not found', 404
     try:
@@ -485,13 +537,15 @@ def view_result(filename):
 
 @app.route('/download/<filename>')
 def download_result(filename):
-    return send_file(os.path.join('results', filename), as_attachment=True)
+    project_dir = os.path.join('results', get_current_project())
+    return send_file(os.path.join(project_dir, filename), as_attachment=True)
 
 
 @app.route('/delete/<filename>', methods=['POST'])
 def delete_result(filename):
     try:
-        filepath = os.path.join('results', filename)
+        project_dir = os.path.join('results', get_current_project())
+        filepath = os.path.join(project_dir, filename)
         if os.path.exists(filepath):
             os.remove(filepath)
             return jsonify({"success": True})
@@ -528,10 +582,11 @@ def clean_cache():
 @app.route('/clean-results', methods=['POST'])
 def clean_results():
     try:
-        if os.path.exists('results'):
-            for filename in os.listdir('results'):
+        project_dir = os.path.join('results', get_current_project())
+        if os.path.exists(project_dir):
+            for filename in os.listdir(project_dir):
                 if filename.endswith('.csv'):
-                    os.remove(os.path.join('results', filename))
+                    os.remove(os.path.join(project_dir, filename))
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
