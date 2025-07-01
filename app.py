@@ -76,13 +76,13 @@ init_db()
 def get_ip_location(ip, use_delay=False):
     """Retrieve IP information, using the cache when possible."""
     conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
     cursor = conn.execute('SELECT * FROM ip_cache WHERE ip = ?', (ip,))
     row = cursor.fetchone()
-    columns = [col[1] for col in cursor.description]
     conn.close()
 
     if row:
-        return dict(zip(columns, row))
+        return dict(row)
 
     if use_delay:
         time.sleep(0.5)  # Rate limiting
