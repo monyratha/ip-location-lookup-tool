@@ -4,7 +4,7 @@
 <style>
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-    .stat-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #f9f9f9; }
+    .stat-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #ffffff; }
     .stat-card h3 { margin-top: 0; color: #333; }
     .stat-number { font-size: 2em; font-weight: bold; color: #007cba; margin: 10px 0; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -14,7 +14,7 @@
     a { color: #007cba; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .nav-links { display: flex; gap: 15px; }
-    .clean-section { margin: 30px 0; padding: 20px; border: 2px solid #dc3545; border-radius: 8px; background: #f8f9fa; }
+    .clean-section { margin: 30px 0; }
     .clean-btn { margin: 5px; }
 </style>
 {% endblock %}
@@ -27,14 +27,14 @@
 </div>
 
 <div class="stats-grid">
-    <div class="stat-card card p-3">
+    <div class="stat-card card p-3 shadow-sm">
         <h3>📈 Overview</h3>
         <div>Total IPs: <span class="stat-number">{{ total_ips }}</span></div>
         <div>Unknown: {{ unknown_count }} ({{ "%.1f"|format((unknown_count/total_ips*100) if total_ips > 0 else 0) }}%)</div>
         <div>Errors: {{ error_count }} ({{ "%.1f"|format((error_count/total_ips*100) if total_ips > 0 else 0) }}%)</div>
     </div>
 
-    <div class="stat-card card p-3">
+    <div class="stat-card card p-3 shadow-sm">
         <h3>🌍 Top Countries</h3>
         <table class="table table-sm">
             {% for country, count in top_countries %}
@@ -46,7 +46,7 @@
         </table>
     </div>
 
-    <div class="stat-card card p-3">
+    <div class="stat-card card p-3 shadow-sm">
         <h3>🏙️ Top Regions</h3>
         <table class="table table-sm">
             {% for region, country, count in top_regions %}
@@ -58,7 +58,7 @@
         </table>
     </div>
 
-    <div class="stat-card card p-3">
+    <div class="stat-card card p-3 shadow-sm">
         <h3>🏘️ Top Cities</h3>
         <table class="table table-sm">
             {% for city, region, country, count in top_cities %}
@@ -71,7 +71,7 @@
     </div>
 </div>
 
-<div class="clean-section">
+<div class="clean-section card p-4 shadow-sm bg-light border border-danger">
     <h3>⚠️ Danger Zone</h3>
     <p>Fix problematic cache entries or clean all data (cleaning cannot be undone!)</p>
     <button onclick="fixCache()" class="btn btn-success clean-btn">Fix Unknown/Error IPs</button>

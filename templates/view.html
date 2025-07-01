@@ -10,9 +10,10 @@
     <h1>📄 {{ filename }}</h1>
 </div>
 
-<div class="mb-3">
-    <a href="/download/{{ filename }}" class="btn btn-primary btn-sm">Download</a>
+<div class="card p-4 shadow-sm">
+    <div class="mb-3">
+        <a href="/download/{{ filename }}" class="btn btn-primary btn-sm">Download</a>
+    </div>
+    {{ table | safe }}
 </div>
-
-{{ table | safe }}
 {% endblock %}

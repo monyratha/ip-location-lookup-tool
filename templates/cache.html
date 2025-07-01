@@ -46,7 +46,8 @@
     </form>
 </div>
 
-<table class="table table-sm table-striped">
+<div class="card p-4 shadow-sm mb-3">
+<table class="table table-sm table-striped table-hover mb-0">
     <thead>
         <tr>
             <th>IP Address</th>
@@ -72,6 +73,7 @@
         {% endfor %}
     </tbody>
 </table>
+</div>
 
 <div class="pagination">
     {%- set extra_query = '' -%}
