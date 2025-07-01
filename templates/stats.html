@@ -15,8 +15,7 @@
     a:hover { text-decoration: underline; }
     .nav-links { display: flex; gap: 15px; }
     .clean-section { margin: 30px 0; padding: 20px; border: 2px solid #dc3545; border-radius: 8px; background: #f8f9fa; }
-    .clean-btn { background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
-    .clean-btn:hover { background: #c82333; }
+    .clean-btn { margin: 5px; }
 </style>
 {% endblock %}
 {% block content %}
@@ -28,16 +27,16 @@
 </div>
 
 <div class="stats-grid">
-    <div class="stat-card">
+    <div class="stat-card card p-3">
         <h3>📈 Overview</h3>
         <div>Total IPs: <span class="stat-number">{{ total_ips }}</span></div>
         <div>Unknown: {{ unknown_count }} ({{ "%.1f"|format((unknown_count/total_ips*100) if total_ips > 0 else 0) }}%)</div>
         <div>Errors: {{ error_count }} ({{ "%.1f"|format((error_count/total_ips*100) if total_ips > 0 else 0) }}%)</div>
     </div>
 
-    <div class="stat-card">
+    <div class="stat-card card p-3">
         <h3>🌍 Top Countries</h3>
-        <table>
+        <table class="table table-sm">
             {% for country, count in top_countries %}
             <tr>
                 <td><span class="rank">{{ loop.index }}</span>{{ country }}</td>
@@ -47,9 +46,9 @@
         </table>
     </div>
 
-    <div class="stat-card">
+    <div class="stat-card card p-3">
         <h3>🏙️ Top Regions</h3>
-        <table>
+        <table class="table table-sm">
             {% for region, country, count in top_regions %}
             <tr>
                 <td><span class="rank">{{ loop.index }}</span>{{ region }}, {{ country }}</td>
@@ -59,9 +58,9 @@
         </table>
     </div>
 
-    <div class="stat-card">
+    <div class="stat-card card p-3">
         <h3>🏘️ Top Cities</h3>
-        <table>
+        <table class="table table-sm">
             {% for city, region, country, count in top_cities %}
             <tr>
                 <td><span class="rank">{{ loop.index }}</span>{{ city }}, {{ region }}</td>
@@ -75,9 +74,9 @@
 <div class="clean-section">
     <h3>⚠️ Danger Zone</h3>
     <p>Fix problematic cache entries or clean all data (cleaning cannot be undone!)</p>
-    <button onclick="fixCache()" class="clean-btn" style="background: #28a745;">Fix Unknown/Error IPs</button>
-    <button onclick="cleanCache()" class="clean-btn">Clean All Cache ({{ total_ips }} records)</button>
-    <button onclick="cleanResults()" class="clean-btn">Clean All Processed Files</button>
+    <button onclick="fixCache()" class="btn btn-success clean-btn">Fix Unknown/Error IPs</button>
+    <button onclick="cleanCache()" class="btn btn-danger clean-btn">Clean All Cache ({{ total_ips }} records)</button>
+    <button onclick="cleanResults()" class="btn btn-danger clean-btn">Clean All Processed Files</button>
 </div>
 
 <script>

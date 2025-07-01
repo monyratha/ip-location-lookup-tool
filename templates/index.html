@@ -2,38 +2,32 @@
 {% block title %}IP Location Lookup{% endblock %}
 {% block extra_head %}
 <style>
-    .section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
-    input, button { padding: 10px; margin: 5px; }
-    button { background: #007cba; color: white; border: none; cursor: pointer; }
-    button:hover { background: #005a87; }
-    .result { margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 3px; }
-    .progress-container { width: 100%; background: #f0f0f0; border-radius: 10px; margin: 10px 0; display: none; }
-    .progress-bar { height: 20px; background: #007cba; border-radius: 10px; transition: width 0.3s; }
-    .progress-text { text-align: center; margin: 5px 0; font-size: 14px; }
+    .section { margin: 30px 0; }
     .processing-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.1); z-index: 1000; display: none; }
     .processing-message { position: fixed; top: 20px; right: 20px; background: #007cba; color: white; padding: 10px 20px; border-radius: 5px; z-index: 1001; display: none; }
-    button:disabled { background: #ccc !important; cursor: not-allowed !important; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="processing-overlay" id="processingOverlay"></div>
 <div class="processing-message" id="processingMessage">⚠️ Processing in progress - Please don't leave this page</div>
 
-<div class="section">
-    <h3>Single IP Lookup</h3>
-    <input type="text" id="ipInput" placeholder="Enter IP address" style="width: 200px;">
-    <button onclick="lookupIP()">Lookup</button>
+<div class="section card p-4">
+    <h3 class="mb-3">Single IP Lookup</h3>
+    <div class="input-group mb-3" style="max-width: 300px;">
+        <input type="text" id="ipInput" class="form-control" placeholder="Enter IP address">
+        <button class="btn btn-primary" onclick="lookupIP()">Lookup</button>
+    </div>
     <div id="result"></div>
 </div>
 
-<div class="section">
-    <h3>CSV File Processing</h3>
-    <p>Upload CSV files with 'client_ip' column to get location data for all IPs.</p>
-    <input type="file" id="csvFiles" accept=".csv" multiple>
-    <button onclick="uploadCSV()">Process Files</button>
-    <div id="uploadResult"></div>
-    <div style="margin-top: 15px;">
-        <a href="/results" style="color: #007cba;">View Processed Files</a>
+<div class="section card p-4">
+    <h3 class="mb-3">CSV File Processing</h3>
+    <p>Upload CSV files with <code>client_ip</code> column to get location data for all IPs.</p>
+    <input type="file" id="csvFiles" class="form-control mb-3" accept=".csv" multiple>
+    <button class="btn btn-primary" onclick="uploadCSV()">Process Files</button>
+    <div id="uploadResult" class="mt-3"></div>
+    <div class="mt-3">
+        <a href="/results">View Processed Files</a>
     </div>
 </div>
 
@@ -119,7 +113,7 @@
 
         resultDiv.innerHTML = `
             <div class="result">Initializing...</div>
-            <div class="progress-container" style="display: block;">
+            <div class="progress" style="height: 20px;">
                 <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
             </div>
             <div class="progress-text" id="progressText">Starting...</div>

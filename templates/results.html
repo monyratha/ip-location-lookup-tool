@@ -3,19 +3,7 @@
 {% block extra_head %}
 <style>
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
-    .view-btn { background: #6c757d; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; }
-    .view-btn:hover { background: #5a6268; }
-    .download-btn { background: #007cba; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; }
-    .download-btn:hover { background: #005a87; }
-    .delete-btn { background: #dc3545; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px; }
-    .delete-btn:hover { background: #c82333; }
     .actions { display: flex; gap: 5px; }
-    a { color: #007cba; text-decoration: none; }
-    a:hover { text-decoration: underline; }
     .empty { text-align: center; color: #666; padding: 40px; }
 </style>
 {% endblock %}
@@ -25,7 +13,7 @@
 </div>
 
 {% if files %}
-<table>
+<table class="table table-striped">
     <thead>
         <tr>
             <th>Filename</th>
@@ -41,9 +29,9 @@
             <td>{{ "%.1f"|format(file.size/1024) }} KB</td>
             <td>{{ file.modified|int|timestamp_to_date }}</td>
             <td class="actions">
-                <a href="/view/{{ file.name }}" class="view-btn">View</a>
-                <a href="/download/{{ file.name }}" class="download-btn">Download</a>
-                <button onclick="deleteFile('{{ file.name }}')" class="delete-btn">Delete</button>
+                <a href="/view/{{ file.name }}" class="btn btn-secondary btn-sm">View</a>
+                <a href="/download/{{ file.name }}" class="btn btn-primary btn-sm">Download</a>
+                <button onclick="deleteFile('{{ file.name }}')" class="btn btn-danger btn-sm">Delete</button>
             </td>
         </tr>
         {% endfor %}
