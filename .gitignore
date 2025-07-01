@@ -53,5 +53,8 @@ Thumbs.db
 # Logs
 *.log
 
+# Environment files
+.env
+
 # Migration script (no longer needed)
 migrate_cache.py

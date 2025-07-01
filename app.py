@@ -6,16 +6,22 @@ import io
 import os
 import time
 import json
+from dotenv import load_dotenv
 
 app = Flask(__name__)
+
+# Load configuration from .env file if present
+load_dotenv()
+
+# Configuration with defaults
+DB_FILE = os.getenv("DB_FILE", "ip_cache.db")
+PORT = int(os.getenv("PORT", "8080"))
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
 
 @app.template_filter('timestamp_to_date')
 def timestamp_to_date(timestamp):
     return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
-
-
-DB_FILE = "ip_cache.db"
 
 
 # Initialize database
@@ -391,4 +397,4 @@ def fix_cache():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080)
+    app.run(debug=DEBUG, port=PORT)
