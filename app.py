@@ -485,6 +485,7 @@ def view_result(filename):
     except Exception as e:
         return str(e), 500
     dynamic_counts = None
+    classification_rules = None
 
     if {'client_ip', 'ip_count'}.issubset(df.columns):
         df['subnet_24'] = df['client_ip'].astype(str).apply(lambda x: '.'.join(x.split('.')[:3]))
@@ -513,8 +514,16 @@ def view_result(filename):
         summary.columns = ['classification', 'ip_address_count', 'total_views']
         dynamic_counts = summary.set_index('classification').to_dict(orient='index')
 
+        classification_rules = [
+            f"Likely fake if IP count >= {HIGH_TRAFFIC_THRESHOLD}",
+            f"Likely fake if subnet has > {SUBNET_IP_THRESHOLD} IPs and > {SUBNET_VIEW_THRESHOLD} total views",
+            "Otherwise likely real",
+        ]
+
     table_html = df.to_html(index=False, classes="table table-bordered table-sm table-hover table-striped")
-    return render_template('view.html', filename=filename, table=table_html, dynamic_counts=dynamic_counts)
+    return render_template('view.html', filename=filename, table=table_html,
+                           dynamic_counts=dynamic_counts,
+                           classification_rules=classification_rules)
 
 
 @app.route('/download/<filename>')

@@ -23,6 +23,16 @@
             {% endfor %}
         </ul>
     </div>
+    {% if classification_rules %}
+    <div class="mb-3">
+        <strong>Classification Rules:</strong>
+        <ul>
+            {% for rule in classification_rules %}
+            <li>{{ rule }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
     {% endif %}
     {{ table | safe }}
 </div>
