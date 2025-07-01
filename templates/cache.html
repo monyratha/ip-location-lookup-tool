@@ -9,6 +9,7 @@
     .header { display: flex; justify-content: space-between; align-items: center; }
     .search { margin: 20px 0; display: flex; gap: 5px; flex-wrap: wrap; }
     .search input, .search select { padding: 8px; }
+    .search input[list] { min-width: 180px; }
     .search button { padding: 8px 15px; background: #007cba; color: white; border: none; cursor: pointer; }
     .delete-btn { background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; }
     .delete-btn:hover { background: #c82333; }
@@ -27,24 +28,29 @@
 <div class="search">
     <form method="GET">
         <input type="text" name="search" value="{{ search }}" placeholder="Search...">
-        <select name="country">
-            <option value="">All Countries</option>
+        <input type="text" name="country" list="country-list" value="{{ country_filter }}" placeholder="Country">
+        <datalist id="country-list">
+            <option value="">
             {% for c in countries %}
-                <option value="{{ c }}" {% if c == country_filter %}selected{% endif %}>{{ c }}</option>
+                <option value="{{ c }}">
             {% endfor %}
-        </select>
-        <select name="region">
-            <option value="">All Regions</option>
+        </datalist>
+
+        <input type="text" name="region" list="region-list" value="{{ region_filter }}" placeholder="Region">
+        <datalist id="region-list">
+            <option value="">
             {% for r in regions %}
-                <option value="{{ r }}" {% if r == region_filter %}selected{% endif %}>{{ r }}</option>
+                <option value="{{ r }}">
             {% endfor %}
-        </select>
-        <select name="city">
-            <option value="">All Cities</option>
+        </datalist>
+
+        <input type="text" name="city" list="city-list" value="{{ city_filter }}" placeholder="City">
+        <datalist id="city-list">
+            <option value="">
             {% for c in cities %}
-                <option value="{{ c }}" {% if c == city_filter %}selected{% endif %}>{{ c }}</option>
+                <option value="{{ c }}">
             {% endfor %}
-        </select>
+        </datalist>
         <button type="submit">Filter</button>
         {% if search or country_filter or region_filter or city_filter %}<a href="/cache">Clear</a>{% endif %}
     </form>
