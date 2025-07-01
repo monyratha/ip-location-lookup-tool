@@ -11,3 +11,7 @@ body {
 a {
     text-decoration: none;
 }
+
+.likely-fake-row {
+    background-color: #ffe6e6;
+}

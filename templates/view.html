@@ -26,7 +26,7 @@
                 </thead>
                 <tbody>
                     {% for key, data in dynamic_counts.items() %}
-                    <tr>
+                    <tr class="{% if key == 'likely_fake' %}likely-fake-row{% endif %}">
                         <td>{{ key.replace('_', ' ').title() }}</td>
                         <td>{{ data.ip_address_count }}</td>
                         <td>{{ data.total_views }}</td>
@@ -59,7 +59,7 @@
             </thead>
             <tbody>
                 {% for row in records %}
-                <tr class="{% if row.dynamic_classification == 'likely_fake' %}table-danger{% endif %}">
+                <tr class="{% if row.dynamic_classification == 'likely_fake' %}likely-fake-row{% endif %}">
                     {% for col in columns %}
                     <td>{{ row[col] }}</td>
                     {% endfor %}
