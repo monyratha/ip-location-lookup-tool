@@ -9,10 +9,14 @@ This Flask web application lets you look up location information for individual 
    ```bash
    pip install -r requirements.txt
    ```
-3. Run the application:
+3. Copy the sample environment file and adjust values if needed:
+   ```bash
+   cp .env.example .env
+   ```
+4. Run the application:
    ```bash
    python app.py
    ```
-4. Open `http://localhost:8080` in your browser.
+5. Open `http://localhost:8080` (or the port set in `.env`) in your browser.
 
-Processed files are saved under `results/` and cached IP data is stored in `ip_cache.db`.
+Processed files are saved under `results/` and cached IP data is stored in the database defined by `DB_FILE`.
