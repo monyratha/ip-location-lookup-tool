@@ -64,7 +64,7 @@ def init_db():
     # Add any missing columns
     for column, col_type in required_columns.items():
         if column not in existing_columns:
-            conn.execute(f"ALTER TABLE ip_cache ADD COLUMN {column} {col_type}")
+            conn.execute(f"ALTER TABLE ip_cache ADD COLUMN \"{column}\" {col_type}")
 
     conn.commit()
     conn.close()
@@ -216,7 +216,7 @@ def get_ip_location(ip, use_delay=False):
         INSERT OR REPLACE INTO ip_cache (
             ip, status, continent, continentCode, country, countryCode,
             region, regionCode, city, district, zip, lat, lon, timezone,
-            offset, currency, isp, org, as, asname, mobile, proxy, hosting
+            offset, currency, isp, org, "as", asname, mobile, proxy, hosting
         ) VALUES (
             :ip, :status, :continent, :continentCode, :country, :countryCode,
             :region, :regionCode, :city, :district, :zip, :lat, :lon, :timezone,
@@ -551,7 +551,7 @@ def fix_cache():
                                 country=:country, countryCode=:countryCode, region=:region,
                                 regionCode=:regionCode, city=:city, district=:district,
                                 zip=:zip, lat=:lat, lon=:lon, timezone=:timezone, offset=:offset,
-                                currency=:currency, isp=:isp, org=:org, as=:as, asname=:asname,
+                                currency=:currency, isp=:isp, org=:org, "as"=:as, asname=:asname,
                                 mobile=:mobile, proxy=:proxy, hosting=:hosting
                             WHERE ip=:ip
                             """,
