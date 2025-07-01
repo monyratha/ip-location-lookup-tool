@@ -282,7 +282,8 @@ def view_stats():
 @app.route('/cache')
 def view_cache():
     page = int(request.args.get('page', 1))
-    per_page = 50
+    # Limit results to 15 rows per page for easier browsing
+    per_page = 15
     search = request.args.get('search', '').strip()
     country_filter = request.args.get('country', '').strip()
     region_filter = request.args.get('region', '').strip()

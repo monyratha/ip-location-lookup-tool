@@ -78,22 +78,27 @@
 </table>
 
 <div class="pagination">
+    {%- set extra_query = '' -%}
+    {%- if search %}{% set extra_query = extra_query + '&search=' + search %}{% endif -%}
+    {%- if country_filter %}{% set extra_query = extra_query + '&country=' + country_filter %}{% endif -%}
+    {%- if region_filter %}{% set extra_query = extra_query + '&region=' + region_filter %}{% endif -%}
+    {%- if city_filter %}{% set extra_query = extra_query + '&city=' + city_filter %}{% endif -%}
     {% if page > 1 %}
-        <a href="?page=1{% if search %}&search={{ search }}{% endif %}">&laquo; First</a>
-        <a href="?page={{ page-1 }}{% if search %}&search={{ search }}{% endif %}">&lsaquo; Prev</a>
+        <a href="?page=1{{ extra_query }}">&laquo; First</a>
+        <a href="?page={{ page-1 }}{{ extra_query }}">&lsaquo; Prev</a>
     {% endif %}
 
     {% for p in page_range %}
         {% if p == page %}
             <span class="current">{{ p }}</span>
         {% else %}
-            <a href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}">{{ p }}</a>
+            <a href="?page={{ p }}{{ extra_query }}">{{ p }}</a>
         {% endif %}
     {% endfor %}
 
     {% if page < total_pages %}
-        <a href="?page={{ page+1 }}{% if search %}&search={{ search }}{% endif %}">Next &rsaquo;</a>
-        <a href="?page={{ total_pages }}{% if search %}&search={{ search }}{% endif %}">Last &raquo;</a>
+        <a href="?page={{ page+1 }}{{ extra_query }}">Next &rsaquo;</a>
+        <a href="?page={{ total_pages }}{{ extra_query }}">Last &raquo;</a>
     {% endif %}
 </div>
 
