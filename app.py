@@ -520,8 +520,10 @@ def view_result(filename):
             "Otherwise likely real",
         ]
 
+        df.drop(columns=['subnet_24'], inplace=True)
+
     records = df.to_dict(orient='records')
-    columns = df.columns.tolist()
+    columns = [c for c in df.columns if c != 'dynamic_classification']
 
     return render_template(
         'view.html',

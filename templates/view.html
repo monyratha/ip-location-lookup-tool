@@ -3,6 +3,7 @@
 {% block extra_head %}
 <style>
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    .header h1 { word-break: break-all; font-size: 1.25rem; }
     .summary-table th, .summary-table td { padding: 4px 8px; }
 </style>
 {% endblock %}
@@ -56,7 +57,7 @@
             </thead>
             <tbody>
                 {% for row in records %}
-                <tr class="{% if row.dynamic_classification == 'likely_fake' %}table-danger{% elif row.dynamic_classification == 'likely_real' %}table-success{% endif %}">
+                <tr class="{% if row.dynamic_classification == 'likely_fake' %}table-danger{% endif %}">
                     {% for col in columns %}
                     <td>{{ row[col] }}</td>
                     {% endfor %}
