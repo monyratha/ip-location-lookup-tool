@@ -7,9 +7,12 @@
     th { background-color: #f2f2f2; }
     tr:nth-child(even) { background-color: #f9f9f9; }
     .header { display: flex; justify-content: space-between; align-items: center; }
-    .search { margin: 20px 0; }
-    .search input { padding: 8px; width: 300px; }
+    .search { margin: 20px 0; display: flex; gap: 5px; flex-wrap: wrap; }
+    .search input, .search select { padding: 8px; }
+    .search input[list] { min-width: 180px; }
     .search button { padding: 8px 15px; background: #007cba; color: white; border: none; cursor: pointer; }
+    .delete-btn { background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; }
+    .delete-btn:hover { background: #c82333; }
     .pagination { margin: 20px 0; text-align: center; }
     .pagination a, .pagination span { padding: 8px 12px; margin: 0 2px; text-decoration: none; border: 1px solid #ddd; }
     .pagination .current { background: #007cba; color: white; }
@@ -24,9 +27,32 @@
 
 <div class="search">
     <form method="GET">
-        <input type="text" name="search" value="{{ search }}" placeholder="Search IP, country, region, or city...">
-        <button type="submit">Search</button>
-        {% if search %}<a href="/cache">Clear</a>{% endif %}
+        <input type="text" name="search" value="{{ search }}" placeholder="Search...">
+        <input type="text" name="country" list="country-list" value="{{ country_filter }}" placeholder="Country">
+        <datalist id="country-list">
+            <option value="">
+            {% for c in countries %}
+                <option value="{{ c }}">
+            {% endfor %}
+        </datalist>
+
+        <input type="text" name="region" list="region-list" value="{{ region_filter }}" placeholder="Region">
+        <datalist id="region-list">
+            <option value="">
+            {% for r in regions %}
+                <option value="{{ r }}">
+            {% endfor %}
+        </datalist>
+
+        <input type="text" name="city" list="city-list" value="{{ city_filter }}" placeholder="City">
+        <datalist id="city-list">
+            <option value="">
+            {% for c in cities %}
+                <option value="{{ c }}">
+            {% endfor %}
+        </datalist>
+        <button type="submit">Filter</button>
+        {% if search or country_filter or region_filter or city_filter %}<a href="/cache">Clear</a>{% endif %}
     </form>
 </div>
 
@@ -37,39 +63,66 @@
             <th>Country</th>
             <th>Region</th>
             <th>City</th>
+            <th>ISP</th>
+            <th>Timezone</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
         {% for row in cache_data %}
         <tr>
-            <td>{{ row[0] }}</td>
-            <td>{{ row[1] }}</td>
-            <td>{{ row[2] }}</td>
-            <td>{{ row[3] }}</td>
+            <td>{{ row['ip'] }}</td>
+            <td>{{ row['country'] }}</td>
+            <td>{{ row['region'] }}</td>
+            <td>{{ row['city'] }}</td>
+            <td>{{ row['isp'] }}</td>
+            <td>{{ row['timezone'] }}</td>
+            <td><button class="delete-btn" onclick="deleteIP('{{ row['ip'] }}')">Delete</button></td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 
 <div class="pagination">
+    {%- set extra_query = '' -%}
+    {%- if search %}{% set extra_query = extra_query + '&search=' + search %}{% endif -%}
+    {%- if country_filter %}{% set extra_query = extra_query + '&country=' + country_filter %}{% endif -%}
+    {%- if region_filter %}{% set extra_query = extra_query + '&region=' + region_filter %}{% endif -%}
+    {%- if city_filter %}{% set extra_query = extra_query + '&city=' + city_filter %}{% endif -%}
     {% if page > 1 %}
-        <a href="?page=1{% if search %}&search={{ search }}{% endif %}">&laquo; First</a>
-        <a href="?page={{ page-1 }}{% if search %}&search={{ search }}{% endif %}">&lsaquo; Prev</a>
+        <a href="?page=1{{ extra_query }}">&laquo; First</a>
+        <a href="?page={{ page-1 }}{{ extra_query }}">&lsaquo; Prev</a>
     {% endif %}
 
     {% for p in page_range %}
         {% if p == page %}
             <span class="current">{{ p }}</span>
         {% else %}
-            <a href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}">{{ p }}</a>
+            <a href="?page={{ p }}{{ extra_query }}">{{ p }}</a>
         {% endif %}
     {% endfor %}
 
     {% if page < total_pages %}
-        <a href="?page={{ page+1 }}{% if search %}&search={{ search }}{% endif %}">Next &rsaquo;</a>
-        <a href="?page={{ total_pages }}{% if search %}&search={{ search }}{% endif %}">Last &raquo;</a>
+        <a href="?page={{ page+1 }}{{ extra_query }}">Next &rsaquo;</a>
+        <a href="?page={{ total_pages }}{{ extra_query }}">Last &raquo;</a>
     {% endif %}
 </div>
 
 <p><em>Showing {{ cache_data|length }} of {{ total }} records (Page {{ page }} of {{ total_pages }})</em></p>
+<script>
+    async function deleteIP(ip) {
+        if (!confirm(`Delete cached data for ${ip}?`)) return;
+        try {
+            const response = await fetch(`/delete-cache/${ip}`, {method: 'POST'});
+            if (response.ok) {
+                location.reload();
+            } else {
+                const data = await response.json();
+                alert(`Error: ${data.error}`);
+            }
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        }
+    }
+</script>
 {% endblock %}

@@ -282,28 +282,47 @@ def view_stats():
 @app.route('/cache')
 def view_cache():
     page = int(request.args.get('page', 1))
-    per_page = 50
+    # Limit results to 15 rows per page for easier browsing
+    per_page = 15
     search = request.args.get('search', '').strip()
+    country_filter = request.args.get('country', '').strip()
+    region_filter = request.args.get('region', '').strip()
+    city_filter = request.args.get('city', '').strip()
 
     conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
 
-    # Build query with search filter
+    where_clauses = []
+    params = []
+
     if search:
-        query = 'SELECT ip, country, region, city FROM ip_cache WHERE ip LIKE ? OR country LIKE ? OR region LIKE ? OR city LIKE ? ORDER BY ip LIMIT ? OFFSET ?'
-        search_term = f'%{search}%'
-        cursor = conn.execute(query,
-                              (search_term, search_term, search_term, search_term, per_page, (page - 1) * per_page))
+        where_clauses.append('(ip LIKE ? OR country LIKE ? OR region LIKE ? OR city LIKE ?)')
+        term = f'%{search}%'
+        params.extend([term, term, term, term])
+    if country_filter:
+        where_clauses.append('country = ?')
+        params.append(country_filter)
+    if region_filter:
+        where_clauses.append('region = ?')
+        params.append(region_filter)
+    if city_filter:
+        where_clauses.append('city = ?')
+        params.append(city_filter)
 
-        # Get total count for pagination
-        count_cursor = conn.execute(
-            'SELECT COUNT(*) FROM ip_cache WHERE ip LIKE ? OR country LIKE ? OR region LIKE ? OR city LIKE ?',
-            (search_term, search_term, search_term, search_term))
-        total = count_cursor.fetchone()[0]
-    else:
-        cursor = conn.execute('SELECT ip, country, region, city FROM ip_cache ORDER BY ip LIMIT ? OFFSET ?',
-                              (per_page, (page - 1) * per_page))
-        count_cursor = conn.execute('SELECT COUNT(*) FROM ip_cache')
-        total = count_cursor.fetchone()[0]
+    where_sql = 'WHERE ' + ' AND '.join(where_clauses) if where_clauses else ''
+
+    query = f'SELECT ip, country, region, city, isp, timezone FROM ip_cache {where_sql} ORDER BY ip LIMIT ? OFFSET ?'
+    params_with_limit = params + [per_page, (page - 1) * per_page]
+    cursor = conn.execute(query, params_with_limit)
+
+    count_query = f'SELECT COUNT(*) FROM ip_cache {where_sql}'
+    count_cursor = conn.execute(count_query, params)
+    total = count_cursor.fetchone()[0]
+
+    # Unique values for filters
+    countries = [row[0] for row in conn.execute('SELECT DISTINCT country FROM ip_cache WHERE country != "" ORDER BY country').fetchall()]
+    regions = [row[0] for row in conn.execute('SELECT DISTINCT region FROM ip_cache WHERE region != "" ORDER BY region').fetchall()]
+    cities = [row[0] for row in conn.execute('SELECT DISTINCT city FROM ip_cache WHERE city != "" ORDER BY city').fetchall()]
 
     cache_data = cursor.fetchall()
     conn.close()
@@ -321,6 +340,12 @@ def view_cache():
                            page=page,
                            total_pages=total_pages,
                            search=search,
+                           country_filter=country_filter,
+                           region_filter=region_filter,
+                           city_filter=city_filter,
+                           countries=countries,
+                           regions=regions,
+                           cities=cities,
                            per_page=per_page,
                            page_range=page_range)
 
@@ -471,6 +496,19 @@ def delete_result(filename):
             os.remove(filepath)
             return jsonify({"success": True})
         return jsonify({"error": "File not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/delete-cache/<ip>', methods=['POST'])
+def delete_cache_ip(ip):
+    """Delete a single IP entry from the cache."""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute('DELETE FROM ip_cache WHERE ip = ?', (ip,))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
