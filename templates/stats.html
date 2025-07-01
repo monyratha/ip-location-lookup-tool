@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IP Statistics</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .stat-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #f9f9f9; }
+        .stat-card h3 { margin-top: 0; color: #333; }
+        .stat-number { font-size: 2em; font-weight: bold; color: #007cba; margin: 10px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f2f2f2; font-weight: bold; }
+        .rank { background: #007cba; color: white; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 8px; }
+        a { color: #007cba; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .nav-links { display: flex; gap: 15px; }
+        .clean-section { margin: 30px 0; padding: 20px; border: 2px solid #dc3545; border-radius: 8px; background: #f8f9fa; }
+        .clean-btn { background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .clean-btn:hover { background: #c82333; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 IP Statistics</h1>
+        <div class="nav-links">
+            <a href="/cache">View Cache</a>
+            <a href="/">← Back to Lookup</a>
+        </div>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>📈 Overview</h3>
+            <div>Total IPs: <span class="stat-number">{{ total_ips }}</span></div>
+            <div>Unknown: {{ unknown_count }} ({{ "%.1f"|format((unknown_count/total_ips*100) if total_ips > 0 else 0) }}%)</div>
+            <div>Errors: {{ error_count }} ({{ "%.1f"|format((error_count/total_ips*100) if total_ips > 0 else 0) }}%)</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>🌍 Top Countries</h3>
+            <table>
+                {% for country, count in top_countries %}
+                <tr>
+                    <td><span class="rank">{{ loop.index }}</span>{{ country }}</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        
+        <div class="stat-card">
+            <h3>🏙️ Top Regions</h3>
+            <table>
+                {% for region, country, count in top_regions %}
+                <tr>
+                    <td><span class="rank">{{ loop.index }}</span>{{ region }}, {{ country }}</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        
+        <div class="stat-card">
+            <h3>🏘️ Top Cities</h3>
+            <table>
+                {% for city, region, country, count in top_cities %}
+                <tr>
+                    <td><span class="rank">{{ loop.index }}</span>{{ city }}, {{ region }}</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+    
+    <div class="clean-section">
+        <h3>⚠️ Danger Zone</h3>
+        <p>Fix problematic cache entries or clean all data (cleaning cannot be undone!)</p>
+        <button onclick="fixCache()" class="clean-btn" style="background: #28a745;">Fix Unknown/Error IPs</button>
+        <button onclick="cleanCache()" class="clean-btn">Clean All Cache ({{ total_ips }} records)</button>
+        <button onclick="cleanResults()" class="clean-btn">Clean All Processed Files</button>
+    </div>
+    
+    <script>
+        async function cleanCache() {
+            if (!confirm('Are you sure you want to delete ALL cached IP data? This cannot be undone!')) return;
+            
+            try {
+                const response = await fetch('/clean-cache', { method: 'POST' });
+                if (response.ok) {
+                    alert('Cache cleaned successfully!');
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        async function fixCache() {
+            if (!confirm('This will re-lookup all IPs with Unknown/Error data. Continue?')) return;
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Fixing...';
+            
+            try {
+                const response = await fetch('/fix-cache', { method: 'POST' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Fixed ${data.fixed} out of ${data.total} problematic IPs!`);
+                    location.reload();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Fix Unknown/Error IPs';
+            }
+        }
+        
+        async function cleanResults() {
+            if (!confirm('Are you sure you want to delete ALL processed files? This cannot be undone!')) return;
+            
+            try {
+                const response = await fetch('/clean-results', { method: 'POST' });
+                if (response.ok) {
+                    alert('Processed files cleaned successfully!');
+                } else {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

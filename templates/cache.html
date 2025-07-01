@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IP Cache</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .search { margin: 20px 0; }
+        .search input { padding: 8px; width: 300px; }
+        .search button { padding: 8px 15px; background: #007cba; color: white; border: none; cursor: pointer; }
+        .pagination { margin: 20px 0; text-align: center; }
+        .pagination a, .pagination span { padding: 8px 12px; margin: 0 2px; text-decoration: none; border: 1px solid #ddd; }
+        .pagination .current { background: #007cba; color: white; }
+        a { color: #007cba; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗄️ IP Cache ({{ total }} records)</h1>
+        <a href="/">← Back to Lookup</a>
+    </div>
+    
+    <div class="search">
+        <form method="GET">
+            <input type="text" name="search" value="{{ search }}" placeholder="Search IP, country, region, or city...">
+            <button type="submit">Search</button>
+            {% if search %}<a href="/cache">Clear</a>{% endif %}
+        </form>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>IP Address</th>
+                <th>Country</th>
+                <th>Region</th>
+                <th>City</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in cache_data %}
+            <tr>
+                <td>{{ row[0] }}</td>
+                <td>{{ row[1] }}</td>
+                <td>{{ row[2] }}</td>
+                <td>{{ row[3] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="pagination">
+        {% if page > 1 %}
+            <a href="?page=1{% if search %}&search={{ search }}{% endif %}">&laquo; First</a>
+            <a href="?page={{ page-1 }}{% if search %}&search={{ search }}{% endif %}">&lsaquo; Prev</a>
+        {% endif %}
+        
+        {% for p in page_range %}
+            {% if p == page %}
+                <span class="current">{{ p }}</span>
+            {% else %}
+                <a href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        
+        {% if page < total_pages %}
+            <a href="?page={{ page+1 }}{% if search %}&search={{ search }}{% endif %}">Next &rsaquo;</a>
+            <a href="?page={{ total_pages }}{% if search %}&search={{ search }}{% endif %}">Last &raquo;</a>
+        {% endif %}
+    </div>
+    
+    <p><em>Showing {{ cache_data|length }} of {{ total }} records (Page {{ page }} of {{ total_pages }})</em></p>
+</body>
+</html>

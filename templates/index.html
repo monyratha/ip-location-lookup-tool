@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IP Location Lookup</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        input, button { padding: 10px; margin: 5px; }
+        button { background: #007cba; color: white; border: none; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .result { margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 3px; }
+        .progress-container { width: 100%; background: #f0f0f0; border-radius: 10px; margin: 10px 0; display: none; }
+        .progress-bar { height: 20px; background: #007cba; border-radius: 10px; transition: width 0.3s; }
+        .progress-text { text-align: center; margin: 5px 0; font-size: 14px; }
+        .processing-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.1); z-index: 1000; display: none; }
+        .processing-message { position: fixed; top: 20px; right: 20px; background: #007cba; color: white; padding: 10px 20px; border-radius: 5px; z-index: 1001; display: none; }
+        button:disabled { background: #ccc !important; cursor: not-allowed !important; }
+    </style>
+</head>
+<body>
+    <div class="processing-overlay" id="processingOverlay"></div>
+    <div class="processing-message" id="processingMessage">⚠️ Processing in progress - Please don't leave this page</div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>🌍 IP Location Lookup Tool</h1>
+        <div style="display: flex; gap: 15px;">
+            <a href="/stats" style="color: #007cba; text-decoration: none;">Statistics</a>
+            <a href="/cache" style="color: #007cba; text-decoration: none;">View Cache</a>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h3>Single IP Lookup</h3>
+        <input type="text" id="ipInput" placeholder="Enter IP address" style="width: 200px;">
+        <button onclick="lookupIP()">Lookup</button>
+        <div id="result"></div>
+    </div>
+    
+    <div class="section">
+        <h3>CSV File Processing</h3>
+        <p>Upload CSV files with 'client_ip' column to get location data for all IPs.</p>
+        <input type="file" id="csvFiles" accept=".csv" multiple>
+        <button onclick="uploadCSV()">Process Files</button>
+        <div id="uploadResult"></div>
+        <div style="margin-top: 15px;">
+            <a href="/results" style="color: #007cba;">View Processed Files</a>
+        </div>
+    </div>
+
+    <script>
+        let isProcessing = false;
+        
+        // Prevent page unload during processing
+        window.addEventListener('beforeunload', function(e) {
+            if (isProcessing) {
+                e.preventDefault();
+                e.returnValue = 'Processing is in progress. Are you sure you want to leave?';
+                return e.returnValue;
+            }
+        });
+        
+        // Block navigation during processing
+        function blockNavigation() {
+            const links = document.querySelectorAll('a');
+            links.forEach(link => {
+                link.style.pointerEvents = 'none';
+                link.style.opacity = '0.5';
+                link.title = 'Navigation disabled during processing';
+            });
+            document.getElementById('processingOverlay').style.display = 'block';
+            document.getElementById('processingMessage').style.display = 'block';
+        }
+        
+        function unblockNavigation() {
+            const links = document.querySelectorAll('a');
+            links.forEach(link => {
+                link.style.pointerEvents = 'auto';
+                link.style.opacity = '1';
+                link.removeAttribute('title');
+            });
+            document.getElementById('processingOverlay').style.display = 'none';
+            document.getElementById('processingMessage').style.display = 'none';
+        }
+        
+        async function lookupIP() {
+            const ip = document.getElementById('ipInput').value;
+            if (!ip) return;
+            
+            try {
+                const response = await fetch('/lookup', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ip: ip})
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result"><strong>${ip}</strong><br>Country: ${data.country}<br>Region: ${data.region}<br>City: ${data.city}</div>`;
+                } else {
+                    document.getElementById('result').innerHTML = `<div class="result" style="color: red;">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<div class="result" style="color: red;">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function uploadCSV() {
+            const fileInput = document.getElementById('csvFiles');
+            if (!fileInput.files.length) return;
+            
+            if (isProcessing) {
+                alert('Processing is already in progress. Please wait.');
+                return;
+            }
+            
+            isProcessing = true;
+            blockNavigation();
+            
+            const formData = new FormData();
+            for (let file of fileInput.files) {
+                formData.append('files', file);
+            }
+            
+            const resultDiv = document.getElementById('uploadResult');
+            const uploadButton = document.querySelector('button[onclick="uploadCSV()"]');
+            uploadButton.disabled = true;
+            uploadButton.textContent = 'Processing...';
+            
+            resultDiv.innerHTML = `
+                <div class="result">Initializing...</div>
+                <div class="progress-container" style="display: block;">
+                    <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+                </div>
+                <div class="progress-text" id="progressText">Starting...</div>
+                <div id="fileResults"></div>
+            `;
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                updateProgress(data);
+                            } catch (e) {}
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result" style="color: red;">Error: ${error.message}</div>`;
+            } finally {
+                isProcessing = false;
+                unblockNavigation();
+                uploadButton.disabled = false;
+                uploadButton.textContent = 'Process Files';
+            }
+        }
+        
+        function updateProgress(data) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const fileResults = document.getElementById('fileResults');
+            
+            if (data.type === 'start') {
+                progressText.textContent = `Processing ${data.total_files} files (${data.total_ips} IPs total)`;
+            } else if (data.type === 'progress') {
+                progressBar.style.width = data.percentage + '%';
+                const eta = data.eta_seconds > 0 ? formatTime(data.eta_seconds) : 'calculating...';
+                progressText.innerHTML = `
+                    <div>${data.percentage}% - ${data.total_progress}/${data.total_ips} IPs</div>
+                    <div style="font-size: 12px;">File: ${data.current_file} (${data.file_progress}/${data.file_total}) | ETA: ${eta}</div>
+                `;
+            } else if (data.type === 'file_complete') {
+                const color = data.status === 'success' ? 'green' : 'red';
+                const icon = data.status === 'success' ? '✅' : '❌';
+                fileResults.innerHTML += `<div style="color: ${color}; margin: 5px 0;">${icon} ${data.filename}: ${data.message}</div>`;
+            } else if (data.type === 'file_error') {
+                fileResults.innerHTML += `<div style="color: red; margin: 5px 0;">❌ ${data.filename}: ${data.message}</div>`;
+            } else if (data.type === 'complete') {
+                progressText.textContent = 'All files processed!';
+                fileResults.innerHTML += '<div style="margin-top: 10px;"><a href="/results">View all processed files</a></div>';
+                isProcessing = false;
+                unblockNavigation();
+                const uploadButton = document.querySelector('button[onclick="uploadCSV()"]');
+                uploadButton.disabled = false;
+                uploadButton.textContent = 'Process Files';
+            }
+        }
+        
+        function formatTime(seconds) {
+            if (seconds < 60) return `${seconds}s`;
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+    </script>
+</body>
+</html>
