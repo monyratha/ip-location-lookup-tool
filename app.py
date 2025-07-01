@@ -316,6 +316,19 @@ def list_results():
     return render_template('results.html', files=files)
 
 
+@app.route('/view/<filename>')
+def view_result(filename):
+    filepath = os.path.join('results', filename)
+    if not os.path.exists(filepath):
+        return 'File not found', 404
+    try:
+        df = pd.read_csv(filepath)
+    except Exception as e:
+        return str(e), 500
+    table_html = df.to_html(index=False)
+    return render_template('view.html', filename=filename, table=table_html)
+
+
 @app.route('/download/<filename>')
 def download_result(filename):
     return send_file(os.path.join('results', filename), as_attachment=True)
