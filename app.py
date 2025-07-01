@@ -26,22 +26,46 @@ def timestamp_to_date(timestamp):
 
 # Initialize database
 def init_db():
+    """Create the cache table and add any missing columns."""
     conn = sqlite3.connect(DB_FILE)
-    conn.execute('''
-                 CREATE TABLE IF NOT EXISTS ip_cache
-                 (
-                     ip
-                     TEXT
-                     PRIMARY
-                     KEY,
-                     country
-                     TEXT,
-                     region
-                     TEXT,
-                     city
-                     TEXT
-                 )
-                 ''')
+
+    # Base table with only the primary key to allow incremental upgrades
+    conn.execute("CREATE TABLE IF NOT EXISTS ip_cache (ip TEXT PRIMARY KEY)")
+
+    # List of required columns and their SQLite types
+    required_columns = {
+        "status": "TEXT",
+        "continent": "TEXT",
+        "continentCode": "TEXT",
+        "country": "TEXT",
+        "countryCode": "TEXT",
+        "region": "TEXT",
+        "regionCode": "TEXT",
+        "city": "TEXT",
+        "district": "TEXT",
+        "zip": "TEXT",
+        "lat": "REAL",
+        "lon": "REAL",
+        "timezone": "TEXT",
+        "offset": "INTEGER",
+        "currency": "TEXT",
+        "isp": "TEXT",
+        "org": "TEXT",
+        "as": "TEXT",
+        "asname": "TEXT",
+        "mobile": "INTEGER",
+        "proxy": "INTEGER",
+        "hosting": "INTEGER",
+    }
+
+    cursor = conn.execute("PRAGMA table_info(ip_cache)")
+    existing_columns = {row[1] for row in cursor.fetchall()}
+
+    # Add any missing columns
+    for column, col_type in required_columns.items():
+        if column not in existing_columns:
+            conn.execute(f"ALTER TABLE ip_cache ADD COLUMN \"{column}\" {col_type}")
+
     conn.commit()
     conn.close()
 
@@ -50,14 +74,15 @@ init_db()
 
 
 def get_ip_location(ip, use_delay=False):
-    # Check cache first
+    """Retrieve IP information, using the cache when possible."""
     conn = sqlite3.connect(DB_FILE)
-    cursor = conn.execute('SELECT country, region, city FROM ip_cache WHERE ip = ?', (ip,))
+    conn.row_factory = sqlite3.Row
+    cursor = conn.execute('SELECT * FROM ip_cache WHERE ip = ?', (ip,))
     row = cursor.fetchone()
     conn.close()
 
     if row:
-        return {"country": row[0], "region": row[1], "city": row[2]}
+        return dict(row)
 
     if use_delay:
         time.sleep(0.5)  # Rate limiting
@@ -66,36 +91,140 @@ def get_ip_location(ip, use_delay=False):
     for attempt in range(3):
         try:
             response = requests.get(f"http://ip-api.com/json/{ip}", timeout=15)
-            
+
             if response.status_code == 429:  # Rate limited
-                time.sleep(2 ** attempt)  # Exponential backoff
+                time.sleep(2 ** attempt)
                 continue
-                
+
             data = response.json()
 
             if data.get("status") == "success":
                 result = {
-                    "country": data.get("country") or "Unknown",
-                    "region": data.get("regionName") or "Unknown",
-                    "city": data.get("city") or "Unknown"
+                    "ip": ip,
+                    "status": data.get("status"),
+                    "continent": data.get("continent", "Unknown"),
+                    "continentCode": data.get("continentCode", "Unknown"),
+                    "country": data.get("country", "Unknown"),
+                    "countryCode": data.get("countryCode", "Unknown"),
+                    "region": data.get("regionName", "Unknown"),
+                    "regionCode": data.get("region", ""),
+                    "city": data.get("city", "Unknown"),
+                    "district": data.get("district", ""),
+                    "zip": data.get("zip", ""),
+                    "lat": data.get("lat"),
+                    "lon": data.get("lon"),
+                    "timezone": data.get("timezone", ""),
+                    "offset": data.get("offset"),
+                    "currency": data.get("currency", ""),
+                    "isp": data.get("isp", ""),
+                    "org": data.get("org", ""),
+                    "as": data.get("as", ""),
+                    "asname": data.get("asname", ""),
+                    "mobile": int(data.get("mobile", 0)),
+                    "proxy": int(data.get("proxy", 0)),
+                    "hosting": int(data.get("hosting", 0)),
                 }
                 break
             else:
-                result = {"country": "Unknown", "region": "Unknown", "city": "Unknown"}
+                result = {
+                    "ip": ip,
+                    "status": data.get("status", "fail"),
+                    "continent": "Unknown",
+                    "continentCode": "Unknown",
+                    "country": "Unknown",
+                    "countryCode": "Unknown",
+                    "region": "Unknown",
+                    "regionCode": "",
+                    "city": "Unknown",
+                    "district": "",
+                    "zip": "",
+                    "lat": None,
+                    "lon": None,
+                    "timezone": "",
+                    "offset": None,
+                    "currency": "",
+                    "isp": "",
+                    "org": "",
+                    "as": "",
+                    "asname": "",
+                    "mobile": 0,
+                    "proxy": 0,
+                    "hosting": 0,
+                }
                 break
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, requests.exceptions.RequestException):
             if attempt < 2:
-                time.sleep(2 ** attempt)  # Exponential backoff
+                time.sleep(2 ** attempt)
                 continue
-            result = {"country": "Network Error", "region": "Network Error", "city": "Network Error"}
+            result = {
+                "ip": ip,
+                "status": "error",
+                "continent": "Network Error",
+                "continentCode": "Network Error",
+                "country": "Network Error",
+                "countryCode": "Network Error",
+                "region": "Network Error",
+                "regionCode": "",
+                "city": "Network Error",
+                "district": "",
+                "zip": "",
+                "lat": None,
+                "lon": None,
+                "timezone": "",
+                "offset": None,
+                "currency": "",
+                "isp": "",
+                "org": "",
+                "as": "",
+                "asname": "",
+                "mobile": 0,
+                "proxy": 0,
+                "hosting": 0,
+            }
         except Exception:
-            result = {"country": "Error", "region": "Error", "city": "Error"}
+            result = {
+                "ip": ip,
+                "status": "error",
+                "continent": "Error",
+                "continentCode": "Error",
+                "country": "Error",
+                "countryCode": "Error",
+                "region": "Error",
+                "regionCode": "",
+                "city": "Error",
+                "district": "",
+                "zip": "",
+                "lat": None,
+                "lon": None,
+                "timezone": "",
+                "offset": None,
+                "currency": "",
+                "isp": "",
+                "org": "",
+                "as": "",
+                "asname": "",
+                "mobile": 0,
+                "proxy": 0,
+                "hosting": 0,
+            }
             break
 
-    # Save to cache
+    # Save full response to cache
     conn = sqlite3.connect(DB_FILE)
-    conn.execute('INSERT OR REPLACE INTO ip_cache (ip, country, region, city) VALUES (?, ?, ?, ?)',
-                 (ip, result["country"], result["region"], result["city"]))
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO ip_cache (
+            ip, status, continent, continentCode, country, countryCode,
+            region, regionCode, city, district, zip, lat, lon, timezone,
+            offset, currency, isp, org, "as", asname, mobile, proxy, hosting
+        ) VALUES (
+            :ip, :status, :continent, :continentCode, :country, :countryCode,
+            :region, :regionCode, :city, :district, :zip, :lat, :lon, :timezone,
+            :offset, :currency, :isp, :org, :as, :asname, :mobile, :proxy, :hosting
+        )
+        """,
+        result,
+    )
     conn.commit()
     conn.close()
 
@@ -387,14 +516,47 @@ def fix_cache():
                 data = response.json()
 
                 if data.get("status") == "success":
-                    country = data.get("country") or "Unknown"
-                    region = data.get("regionName") or "Unknown"
-                    city = data.get("city") or "Unknown"
+                    result = {
+                        "ip": ip,
+                        "status": data.get("status"),
+                        "continent": data.get("continent", "Unknown"),
+                        "continentCode": data.get("continentCode", "Unknown"),
+                        "country": data.get("country", "Unknown"),
+                        "countryCode": data.get("countryCode", "Unknown"),
+                        "region": data.get("regionName", "Unknown"),
+                        "regionCode": data.get("region", ""),
+                        "city": data.get("city", "Unknown"),
+                        "district": data.get("district", ""),
+                        "zip": data.get("zip", ""),
+                        "lat": data.get("lat"),
+                        "lon": data.get("lon"),
+                        "timezone": data.get("timezone", ""),
+                        "offset": data.get("offset"),
+                        "currency": data.get("currency", ""),
+                        "isp": data.get("isp", ""),
+                        "org": data.get("org", ""),
+                        "as": data.get("as", ""),
+                        "asname": data.get("asname", ""),
+                        "mobile": int(data.get("mobile", 0)),
+                        "proxy": int(data.get("proxy", 0)),
+                        "hosting": int(data.get("hosting", 0)),
+                    }
 
                     # Only update if we got better data
-                    if country != "Unknown" or region != "Unknown" or city != "Unknown":
-                        conn.execute('UPDATE ip_cache SET country = ?, region = ?, city = ? WHERE ip = ?',
-                                     (country, region, city, ip))
+                    if result["country"] != "Unknown" or result["region"] != "Unknown" or result["city"] != "Unknown":
+                        conn.execute(
+                            """
+                            UPDATE ip_cache SET
+                                status=:status, continent=:continent, continentCode=:continentCode,
+                                country=:country, countryCode=:countryCode, region=:region,
+                                regionCode=:regionCode, city=:city, district=:district,
+                                zip=:zip, lat=:lat, lon=:lon, timezone=:timezone, offset=:offset,
+                                currency=:currency, isp=:isp, org=:org, "as"=:as, asname=:asname,
+                                mobile=:mobile, proxy=:proxy, hosting=:hosting
+                            WHERE ip=:ip
+                            """,
+                            result,
+                        )
                         fixed_count += 1
 
                 time.sleep(0.1)  # Rate limiting

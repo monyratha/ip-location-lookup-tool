@@ -20,3 +20,11 @@ This Flask web application lets you look up location information for individual 
 5. Open `http://localhost:8080` (or the port set in `.env`) in your browser.
 
 Processed files are saved under `results/` and cached IP data is stored in the database defined by `DB_FILE`.
+
+## Cached Data
+
+The IP information retrieved from [ip-api.com](https://ip-api.com/) is stored in
+the `ip_cache` table. In addition to country, region and city, the cache now
+includes fields such as continent, latitude/longitude, ISP and more. This allows
+subsequent lookups to return the full API response without making another
+network request.
