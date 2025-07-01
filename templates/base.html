@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}IP Lookup{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="navbar">
+        <a href="{{ url_for('index') }}" class="logo">🌍 IP Lookup</a>
+        <div class="nav-links">
+            <a href="{{ url_for('view_stats') }}">Statistics</a>
+            <a href="{{ url_for('view_cache') }}">Cache</a>
+            <a href="{{ url_for('list_results') }}">Files</a>
+        </div>
+    </div>
+    {% block content %}{% endblock %}
+</body>
+</html>

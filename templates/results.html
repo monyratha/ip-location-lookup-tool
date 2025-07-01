@@ -1,83 +1,79 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Processed Files</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .view-btn { background: #6c757d; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; }
-        .view-btn:hover { background: #5a6268; }
-        .download-btn { background: #007cba; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; }
-        .download-btn:hover { background: #005a87; }
-        .delete-btn { background: #dc3545; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px; }
-        .delete-btn:hover { background: #c82333; }
-        .actions { display: flex; gap: 5px; }
-        a { color: #007cba; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .empty { text-align: center; color: #666; padding: 40px; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>📁 Processed Files</h1>
-        <a href="/">← Back to Lookup</a>
-    </div>
-    
-    {% if files %}
-    <table>
-        <thead>
-            <tr>
-                <th>Filename</th>
-                <th>Size</th>
-                <th>Modified</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for file in files %}
-            <tr>
-                <td>{{ file.name }}</td>
-                <td>{{ "%.1f"|format(file.size/1024) }} KB</td>
-                <td>{{ file.modified|int|timestamp_to_date }}</td>
-                <td class="actions">
-                    <a href="/view/{{ file.name }}" class="view-btn">View</a>
-                    <a href="/download/{{ file.name }}" class="download-btn">Download</a>
-                    <button onclick="deleteFile('{{ file.name }}')" class="delete-btn">Delete</button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="empty">
-        <p>No processed files found.</p>
-        <p><a href="/">Upload some CSV files to get started</a></p>
-    </div>
-    {% endif %}
-    
-    <script>
-        async function deleteFile(filename) {
-            if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
-            
-            try {
-                const response = await fetch(`/delete/${filename}`, {
-                    method: 'POST'
-                });
-                
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    alert(`Error: ${error.error}`);
-                }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
+{% extends 'base.html' %}
+{% block title %}Processed Files{% endblock %}
+{% block extra_head %}
+<style>
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .view-btn { background: #6c757d; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; }
+    .view-btn:hover { background: #5a6268; }
+    .download-btn { background: #007cba; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; }
+    .download-btn:hover { background: #005a87; }
+    .delete-btn { background: #dc3545; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px; }
+    .delete-btn:hover { background: #c82333; }
+    .actions { display: flex; gap: 5px; }
+    a { color: #007cba; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .empty { text-align: center; color: #666; padding: 40px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="header">
+    <h1>📁 Processed Files</h1>
+</div>
+
+{% if files %}
+<table>
+    <thead>
+        <tr>
+            <th>Filename</th>
+            <th>Size</th>
+            <th>Modified</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for file in files %}
+        <tr>
+            <td>{{ file.name }}</td>
+            <td>{{ "%.1f"|format(file.size/1024) }} KB</td>
+            <td>{{ file.modified|int|timestamp_to_date }}</td>
+            <td class="actions">
+                <a href="/view/{{ file.name }}" class="view-btn">View</a>
+                <a href="/download/{{ file.name }}" class="download-btn">Download</a>
+                <button onclick="deleteFile('{{ file.name }}')" class="delete-btn">Delete</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty">
+    <p>No processed files found.</p>
+    <p><a href="/">Upload some CSV files to get started</a></p>
+</div>
+{% endif %}
+
+<script>
+    async function deleteFile(filename) {
+        if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+
+        try {
+            const response = await fetch(`/delete/${filename}`, {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.error}`);
             }
+        } catch (error) {
+            alert(`Error: ${error.message}`);
         }
-    </script>
-</body>
-</html>
+    }
+</script>
+{% endblock %}
