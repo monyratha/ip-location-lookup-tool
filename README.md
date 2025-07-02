@@ -14,9 +14,10 @@ This Flask web application lets you look up location information for individual 
    cp .env.example .env
    ```
 4. Start a Redis server (default connection uses `redis://localhost:6379/0`).
-5. In one terminal, run the RQ worker:
+5. In one terminal, run the RQ worker. On macOS you may need to disable fork
+   safety to avoid `objc` crashes:
    ```bash
-   rq worker csv
+   OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES rq worker csv
    ```
 6. In another terminal, run the application:
    ```bash
