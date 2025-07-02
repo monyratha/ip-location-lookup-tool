@@ -18,6 +18,7 @@ This Flask web application lets you look up location information for individual 
    python app.py
    ```
 5. Open `http://localhost:8080` (or the port set in `.env`) in your browser.
+6. Cached records expire after `CACHE_TTL_DAYS` (default 30) which can be set in `.env`.
 
 Processed files are saved under `results/` and cached IP data is stored in the database defined by `DB_FILE`.
 

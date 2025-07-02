@@ -60,6 +60,7 @@
             <th>City</th>
             <th>ISP</th>
             <th>Timezone</th>
+            <th>Updated</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -72,6 +73,7 @@
             <td>{{ row['city'] }}</td>
             <td>{{ row['isp'] }}</td>
             <td>{{ row['timezone'] }}</td>
+            <td>{{ row['last_updated']|timestamp_to_date }}</td>
             <td><button class="btn btn-danger btn-sm" onclick="deleteIP('{{ row['ip'] }}')">Delete</button></td>
         </tr>
         {% endfor %}

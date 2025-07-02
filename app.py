@@ -22,6 +22,8 @@ DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 HIGH_TRAFFIC_THRESHOLD = int(os.getenv("HIGH_TRAFFIC_THRESHOLD", "100"))
 SUBNET_IP_THRESHOLD = int(os.getenv("SUBNET_IP_THRESHOLD", "50"))
 SUBNET_VIEW_THRESHOLD = int(os.getenv("SUBNET_VIEW_THRESHOLD", "5000"))
+CACHE_TTL_DAYS = int(os.getenv("CACHE_TTL_DAYS", "30"))
+CACHE_TTL_SECONDS = CACHE_TTL_DAYS * 86400
 
 
 @app.template_filter('timestamp_to_date')
@@ -61,6 +63,7 @@ def init_db():
         "mobile": "INTEGER",
         "proxy": "INTEGER",
         "hosting": "INTEGER",
+        "last_updated": "REAL",
     }
 
     cursor = conn.execute("PRAGMA table_info(ip_cache)")
@@ -79,7 +82,10 @@ init_db()
 
 
 def get_ip_location(ip, use_delay=False):
-    """Retrieve IP information, using the cache when possible."""
+    """Retrieve IP information, using the cache when possible.
+
+    Cached entries older than ``CACHE_TTL_DAYS`` will be refreshed.
+    """
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     cursor = conn.execute('SELECT * FROM ip_cache WHERE ip = ?', (ip,))
@@ -87,7 +93,9 @@ def get_ip_location(ip, use_delay=False):
     conn.close()
 
     if row:
-        return dict(row)
+        last = row["last_updated"] if "last_updated" in row.keys() else None
+        if last and time.time() - last < CACHE_TTL_SECONDS:
+            return dict(row)
 
     if use_delay:
         time.sleep(0.5)  # Rate limiting
@@ -128,6 +136,7 @@ def get_ip_location(ip, use_delay=False):
                     "mobile": int(data.get("mobile", 0)),
                     "proxy": int(data.get("proxy", 0)),
                     "hosting": int(data.get("hosting", 0)),
+                    "last_updated": time.time(),
                 }
                 break
             else:
@@ -155,6 +164,7 @@ def get_ip_location(ip, use_delay=False):
                     "mobile": 0,
                     "proxy": 0,
                     "hosting": 0,
+                    "last_updated": time.time(),
                 }
                 break
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, requests.exceptions.RequestException):
@@ -185,6 +195,7 @@ def get_ip_location(ip, use_delay=False):
                 "mobile": 0,
                 "proxy": 0,
                 "hosting": 0,
+                "last_updated": time.time(),
             }
         except Exception:
             result = {
@@ -211,6 +222,7 @@ def get_ip_location(ip, use_delay=False):
                 "mobile": 0,
                 "proxy": 0,
                 "hosting": 0,
+                "last_updated": time.time(),
             }
             break
 
@@ -221,11 +233,13 @@ def get_ip_location(ip, use_delay=False):
         INSERT OR REPLACE INTO ip_cache (
             ip, status, continent, continentCode, country, countryCode,
             region, regionCode, city, district, zip, lat, lon, timezone,
-            offset, currency, isp, org, "as", asname, mobile, proxy, hosting
+            offset, currency, isp, org, "as", asname, mobile, proxy, hosting,
+            last_updated
         ) VALUES (
             :ip, :status, :continent, :continentCode, :country, :countryCode,
             :region, :regionCode, :city, :district, :zip, :lat, :lon, :timezone,
-            :offset, :currency, :isp, :org, :as, :asname, :mobile, :proxy, :hosting
+            :offset, :currency, :isp, :org, :as, :asname, :mobile, :proxy, :hosting,
+            :last_updated
         )
         """,
         result,
@@ -316,7 +330,7 @@ def view_cache():
 
     where_sql = 'WHERE ' + ' AND '.join(where_clauses) if where_clauses else ''
 
-    query = f'SELECT ip, country, region, city, lat, lon, isp, timezone FROM ip_cache {where_sql} ORDER BY ip LIMIT ? OFFSET ?'
+    query = f'SELECT ip, country, region, city, lat, lon, isp, timezone, last_updated FROM ip_cache {where_sql} ORDER BY ip LIMIT ? OFFSET ?'
     params_with_limit = params + [per_page, (page - 1) * per_page]
     cursor = conn.execute(query, params_with_limit)
 
@@ -630,6 +644,7 @@ def fix_cache():
                         "mobile": int(data.get("mobile", 0)),
                         "proxy": int(data.get("proxy", 0)),
                         "hosting": int(data.get("hosting", 0)),
+                        "last_updated": time.time(),
                     }
 
                     # Only update if we got better data
@@ -642,7 +657,8 @@ def fix_cache():
                                 regionCode=:regionCode, city=:city, district=:district,
                                 zip=:zip, lat=:lat, lon=:lon, timezone=:timezone, offset=:offset,
                                 currency=:currency, isp=:isp, org=:org, "as"=:as, asname=:asname,
-                                mobile=:mobile, proxy=:proxy, hosting=:hosting
+                                mobile=:mobile, proxy=:proxy, hosting=:hosting,
+                                last_updated=:last_updated
                             WHERE ip=:ip
                             """,
                             result,
