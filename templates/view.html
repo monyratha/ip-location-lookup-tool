@@ -3,6 +3,8 @@
 {% block extra_head %}
 <style>
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    .header h1 { word-break: break-all; font-size: 1.25rem; }
+    .summary-table th, .summary-table td { padding: 4px 8px; }
 </style>
 {% endblock %}
 {% block content %}
@@ -14,6 +16,57 @@
     <div class="mb-3">
         <a href="/download/{{ filename }}" class="btn btn-primary btn-sm">Download</a>
     </div>
-    {{ table | safe }}
+    {% if dynamic_counts %}
+    <div class="row gx-4 mb-3">
+        <div class="col-md-6">
+            <h5 class="mb-2">Classification Summary</h5>
+            <table class="table table-sm summary-table w-auto">
+                <thead>
+                    <tr><th>Classification</th><th>IP Count</th><th>Total Views</th></tr>
+                </thead>
+                <tbody>
+                    {% for key, data in dynamic_counts.items() %}
+                    <tr class="{% if key == 'likely_fake' %}likely-fake-row{% endif %}">
+                        <td>{{ key.replace('_', ' ').title() }}</td>
+                        <td>{{ data.ip_address_count }}</td>
+                        <td>{{ data.total_views }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if classification_rules %}
+        <div class="col-md-6">
+            <h5 class="mb-2">Classification Rules</h5>
+            <ul class="mb-0">
+                {% for rule in classification_rules %}
+                <li>{{ rule }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm table-hover table-striped">
+            <thead>
+                <tr>
+                    {% for col in columns %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in records %}
+                <tr class="{% if row.dynamic_classification == 'likely_fake' %}likely-fake-row{% endif %}">
+                    {% for col in columns %}
+                    <td>{{ row[col] }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

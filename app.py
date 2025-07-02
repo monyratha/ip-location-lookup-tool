@@ -18,6 +18,11 @@ DB_FILE = os.getenv("DB_FILE", "ip_cache.db")
 PORT = int(os.getenv("PORT", "8080"))
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
+# Dynamic classification thresholds
+HIGH_TRAFFIC_THRESHOLD = int(os.getenv("HIGH_TRAFFIC_THRESHOLD", "100"))
+SUBNET_IP_THRESHOLD = int(os.getenv("SUBNET_IP_THRESHOLD", "50"))
+SUBNET_VIEW_THRESHOLD = int(os.getenv("SUBNET_VIEW_THRESHOLD", "5000"))
+
 
 @app.template_filter('timestamp_to_date')
 def timestamp_to_date(timestamp):
@@ -479,8 +484,55 @@ def view_result(filename):
         df = pd.read_csv(filepath)
     except Exception as e:
         return str(e), 500
-    table_html = df.to_html(index=False, classes="table table-bordered table-sm table-hover table-striped")
-    return render_template('view.html', filename=filename, table=table_html)
+    dynamic_counts = None
+    classification_rules = None
+
+    if {'client_ip', 'ip_count'}.issubset(df.columns):
+        df['subnet_24'] = df['client_ip'].astype(str).apply(lambda x: '.'.join(x.split('.')[:3]))
+
+
+        subnet_stats = df.groupby('subnet_24').agg(
+            ip_count=('client_ip', 'count'),
+            total_views=('ip_count', 'sum')
+        ).reset_index()
+
+        suspicious_subnets = subnet_stats[
+            (subnet_stats['ip_count'] > SUBNET_IP_THRESHOLD) &
+            (subnet_stats['total_views'] > SUBNET_VIEW_THRESHOLD)
+        ]['subnet_24'].tolist()
+
+        def classify_dynamic(row):
+            if row['ip_count'] >= HIGH_TRAFFIC_THRESHOLD:
+                return 'likely_fake'
+            if row['subnet_24'] in suspicious_subnets:
+                return 'likely_fake'
+            return 'likely_real'
+
+        df['dynamic_classification'] = df.apply(classify_dynamic, axis=1)
+
+        summary = df.groupby('dynamic_classification')['ip_count'].agg(['count', 'sum']).reset_index()
+        summary.columns = ['classification', 'ip_address_count', 'total_views']
+        dynamic_counts = summary.set_index('classification').to_dict(orient='index')
+
+        classification_rules = [
+            f"Likely fake if IP count >= {HIGH_TRAFFIC_THRESHOLD}",
+            f"Likely fake if subnet has > {SUBNET_IP_THRESHOLD} IPs and > {SUBNET_VIEW_THRESHOLD} total views",
+            "Otherwise likely real",
+        ]
+
+        df.drop(columns=['subnet_24'], inplace=True)
+
+    records = df.to_dict(orient='records')
+    columns = [c for c in df.columns if c != 'dynamic_classification']
+
+    return render_template(
+        'view.html',
+        filename=filename,
+        records=records,
+        columns=columns,
+        dynamic_counts=dynamic_counts,
+        classification_rules=classification_rules
+    )
 
 
 @app.route('/download/<filename>')

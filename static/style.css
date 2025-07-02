@@ -11,3 +11,9 @@ body {
 a {
     text-decoration: none;
 }
+
+.likely-fake-row,
+.likely-fake-row>td,
+.likely-fake-row>th {
+    background-color: #ed8b8b !important;
+}
