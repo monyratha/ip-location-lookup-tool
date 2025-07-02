@@ -8,7 +8,8 @@ import time
 import json
 from dotenv import load_dotenv
 import redis
-from rq import Queue, Job
+from rq import Queue
+from rq.job import Job
 from tasks import process_csv_job
 
 app = Flask(__name__)
