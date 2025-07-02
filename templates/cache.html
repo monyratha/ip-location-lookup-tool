@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}IP Cache{% endblock %}
 {% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2Se+/dkUB5mOyqOeSj1zKZ9/eIbLzlfme2MGIZk=" crossorigin=""/>
 <style>
     .header { display: flex; justify-content: space-between; align-items: center; }
     .search { margin: 20px 0; display: flex; gap: 5px; flex-wrap: wrap; }
@@ -8,6 +9,7 @@
     .pagination { margin: 20px 0; text-align: center; }
     .pagination a, .pagination span { padding: 8px 12px; margin: 0 2px; text-decoration: none; border: 1px solid #ddd; }
     .pagination .current { background: #007cba; color: white; }
+    #map { height: 400px; margin: 20px 0; }
 </style>
 {% endblock %}
 {% block content %}
@@ -45,6 +47,8 @@
         {% if search or country_filter or region_filter or city_filter %}<a href="/cache">Clear</a>{% endif %}
     </form>
 </div>
+
+<div id="map"></div>
 
 <div class="card p-4 shadow-sm mb-3">
 <table class="table table-sm table-striped table-hover mb-0">
@@ -116,5 +120,20 @@
             alert(`Error: ${err.message}`);
         }
     }
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1jInfftBf054bXa/vu4DrWZO/1/eT6Xk4FhfeTgI=" crossorigin=""></script>
+<script>
+    const map = L.map('map').setView([20, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    const locations = {{ cache_data | tojson }};
+    locations.forEach(row => {
+        if (row.lat !== null && row.lon !== null) {
+            L.marker([row.lat, row.lon]).addTo(map)
+                .bindPopup(`<strong>${row.ip}</strong><br>${row.country}, ${row.region}, ${row.city}`);
+        }
+    });
 </script>
 {% endblock %}
