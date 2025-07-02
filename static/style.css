@@ -1,7 +1,8 @@
 body {
     font-family: 'Inter', sans-serif;
     padding-top: 20px;
-    background-color: #f8fafc;
+    background: linear-gradient(135deg, #cfd9df 0%, #e2ebf0 100%);
+    min-height: 100vh;
 }
 
 .container {
@@ -16,4 +17,17 @@ a {
 .likely-fake-row>td,
 .likely-fake-row>th {
     background-color: #ed8b8b !important;
+}
+
+/* Glassmorphism styles */
+.glass-nav {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
 }
