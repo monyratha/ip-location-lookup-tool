@@ -1,8 +1,10 @@
 body {
     font-family: 'Inter', sans-serif;
     padding-top: 20px;
-    background-color: #f8fafc;
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    min-height: 100vh;
 }
+
 
 .container {
     max-width: 1100px;
@@ -10,6 +12,39 @@ body {
 
 a {
     text-decoration: none;
+    color: inherit;
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    color: #000;
+}
+
+.form-control {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #000;
+    backdrop-filter: blur(4px);
+}
+
+.form-control::placeholder {
+    color: #f0f0f0;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .likely-fake-row,

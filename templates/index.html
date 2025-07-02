@@ -5,6 +5,7 @@
     .section { margin: 30px 0; }
     .processing-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.1); z-index: 1000; display: none; }
     .processing-message { position: fixed; top: 20px; right: 20px; background: #007cba; color: white; padding: 10px 20px; border-radius: 5px; z-index: 1001; display: none; }
+    #result .card { margin-top: 15px; }
 </style>
 {% endblock %}
 {% block content %}
@@ -78,14 +79,15 @@
             });
             const data = await response.json();
 
+            const resultDiv = document.getElementById('result');
             if (response.ok) {
-                document.getElementById('result').innerHTML =
-                    `<div class="result"><strong>${ip}</strong><br>Country: ${data.country}<br>Region: ${data.region}<br>City: ${data.city}</div>`;
+                resultDiv.innerHTML =
+                    `<div class="card p-3 shadow-sm fade-in"><strong>${ip}</strong><br>Country: ${data.country}<br>Region: ${data.region}<br>City: ${data.city}</div>`;
             } else {
-                document.getElementById('result').innerHTML = `<div class="result" style="color: red;">Error: ${data.error}</div>`;
+                resultDiv.innerHTML = `<div class="card p-3 shadow-sm fade-in" style="color: red;">Error: ${data.error}</div>`;
             }
         } catch (error) {
-            document.getElementById('result').innerHTML = `<div class="result" style="color: red;">Error: ${error.message}</div>`;
+            document.getElementById('result').innerHTML = `<div class="card p-3 shadow-sm fade-in" style="color: red;">Error: ${error.message}</div>`;
         }
     }
 
