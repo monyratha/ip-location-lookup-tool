@@ -316,7 +316,7 @@ def view_cache():
 
     where_sql = 'WHERE ' + ' AND '.join(where_clauses) if where_clauses else ''
 
-    query = f'SELECT ip, country, region, city, isp, timezone FROM ip_cache {where_sql} ORDER BY ip LIMIT ? OFFSET ?'
+    query = f'SELECT ip, country, region, city, lat, lon, isp, timezone FROM ip_cache {where_sql} ORDER BY ip LIMIT ? OFFSET ?'
     params_with_limit = params + [per_page, (page - 1) * per_page]
     cursor = conn.execute(query, params_with_limit)
 
@@ -329,7 +329,7 @@ def view_cache():
     regions = [row[0] for row in conn.execute('SELECT DISTINCT region FROM ip_cache WHERE region != "" ORDER BY region').fetchall()]
     cities = [row[0] for row in conn.execute('SELECT DISTINCT city FROM ip_cache WHERE city != "" ORDER BY city').fetchall()]
 
-    cache_data = cursor.fetchall()
+    cache_data = [dict(row) for row in cursor.fetchall()]
     conn.close()
 
     total_pages = (total + per_page - 1) // per_page
