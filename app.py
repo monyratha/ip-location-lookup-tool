@@ -7,6 +7,9 @@ import os
 import time
 import json
 from dotenv import load_dotenv
+import redis
+from rq import Queue, Job
+from tasks import process_csv_job
 
 app = Flask(__name__)
 
@@ -17,6 +20,10 @@ load_dotenv()
 DB_FILE = os.getenv("DB_FILE", "ip_cache.db")
 PORT = int(os.getenv("PORT", "8080"))
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+redis_conn = redis.from_url(REDIS_URL)
+task_queue = Queue('csv', connection=redis_conn)
 
 # Dynamic classification thresholds
 HIGH_TRAFFIC_THRESHOLD = int(os.getenv("HIGH_TRAFFIC_THRESHOLD", "100"))
@@ -369,90 +376,47 @@ def lookup_ip():
 def upload_csv():
     files = request.files.getlist('files')
     if not files or files[0].filename == '':
-        return Response(f"data: {json.dumps({'type': 'error', 'message': 'No files uploaded'})}\n\n",
-                        mimetype='text/event-stream')
+        return jsonify({'error': 'No files uploaded'}), 400
 
-    # Read and store file contents upfront
     file_data = []
     for file in files:
         if file.filename.endswith('.csv'):
             try:
                 content = file.read()
                 file_data.append({'filename': file.filename, 'content': content})
-            except:
+            except Exception:
                 file_data.append({'filename': file.filename, 'content': None})
 
+    job = task_queue.enqueue(process_csv_job, file_data, job_timeout=3600)
+    return jsonify({'job_id': job.get_id()})
+
+
+@app.route('/stream/<job_id>')
+def stream_progress(job_id):
     def generate():
-        os.makedirs('results', exist_ok=True)
+        job = Job.fetch(job_id, connection=redis_conn)
+        sent_start = False
+        sent_results = False
+        last_progress = None
+        while True:
+            job.refresh()
+            meta = job.meta
+            if not sent_start and 'start' in meta:
+                yield f"data: {json.dumps(meta['start'])}\n\n"
+                sent_start = True
+            if 'progress' in meta and meta['progress'] != last_progress:
+                yield f"data: {json.dumps(meta['progress'])}\n\n"
+                last_progress = meta['progress']
+            if not sent_results and meta.get('results'):
+                for item in meta['results']:
+                    yield f"data: {json.dumps(item)}\n\n"
+                sent_results = True
+            if meta.get('complete'):
+                yield "data: {\"type\": \"complete\"}\n\n"
+                break
+            time.sleep(1)
 
-        total_files = len(file_data)
-        total_ips = 0
-        processed_ips = 0
-        start_time = time.time()
-
-        # Count total IPs
-        for file_info in file_data:
-            if file_info['content']:
-                try:
-                    df = pd.read_csv(io.StringIO(file_info['content'].decode('utf-8')))
-                    if 'client_ip' in df.columns:
-                        total_ips += len(df)
-                except:
-                    pass
-
-        yield f"data: {json.dumps({'type': 'start', 'total_files': total_files, 'total_ips': total_ips})}\n\n"
-
-        for file_idx, file_info in enumerate(file_data):
-            if not file_info['content']:
-                yield f"data: {json.dumps({'type': 'file_error', 'filename': file_info['filename'], 'message': 'Failed to read file'})}\n\n"
-                continue
-
-            try:
-                df = pd.read_csv(io.StringIO(file_info['content'].decode('utf-8')))
-                if 'client_ip' not in df.columns:
-                    yield f"data: {json.dumps({'type': 'file_error', 'filename': file_info['filename'], 'message': 'Missing client_ip column'})}\n\n"
-                    continue
-
-                file_ips = len(df)
-                locations = []
-
-                for ip_idx, ip in enumerate(df['client_ip']):
-                    location = get_ip_location(str(ip), use_delay=True)
-                    locations.append([location['country'], location['region'], location['city']])
-                    processed_ips += 1
-
-                    if (ip_idx + 1) % 5 == 0 or ip_idx == file_ips - 1:
-                        elapsed = time.time() - start_time
-                        rate = processed_ips / elapsed if elapsed > 0 else 0
-                        eta = (total_ips - processed_ips) / rate if rate > 0 else 0
-
-                        yield f"data: {json.dumps({
-                            'type': 'progress',
-                            'file_idx': file_idx + 1,
-                            'total_files': total_files,
-                            'current_file': file_info['filename'],
-                            'file_progress': ip_idx + 1,
-                            'file_total': file_ips,
-                            'total_progress': processed_ips,
-                            'total_ips': total_ips,
-                            'percentage': round((processed_ips / total_ips) * 100, 1) if total_ips > 0 else 0,
-                            'eta_seconds': round(eta)
-                        })}\n\n"
-
-                df[['country', 'region', 'city']] = locations
-
-                output_filename = f"processed_{file_info['filename']}"
-                output_path = os.path.join('results', output_filename)
-                df.to_csv(output_path, index=False)
-
-                yield f"data: {json.dumps({'type': 'file_complete', 'filename': file_info['filename'], 'status': 'success', 'message': f'Processed {file_ips} IPs'})}\n\n"
-
-            except Exception as e:
-                yield f"data: {json.dumps({'type': 'file_complete', 'filename': file_info['filename'], 'status': 'error', 'message': str(e)})}\n\n"
-
-        yield f"data: {json.dumps({'type': 'complete'})}\n\n"
-
-    return Response(generate(), mimetype='text/plain')
+    return Response(generate(), mimetype='text/event-stream')
 
 
 @app.route('/results')

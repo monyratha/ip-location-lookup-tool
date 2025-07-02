@@ -13,11 +13,16 @@ This Flask web application lets you look up location information for individual 
    ```bash
    cp .env.example .env
    ```
-4. Run the application:
+4. Start a Redis server (default connection uses `redis://localhost:6379/0`).
+5. In one terminal, run the RQ worker:
+   ```bash
+   rq worker csv
+   ```
+6. In another terminal, run the application:
    ```bash
    python app.py
    ```
-5. Open `http://localhost:8080` (or the port set in `.env`) in your browser.
+7. Open `http://localhost:8080` (or the port set in `.env`) in your browser.
 
 Processed files are saved under `results/` and cached IP data is stored in the database defined by `DB_FILE`.
 

@@ -3,3 +3,5 @@ pandas~=2.3.0
 requests~=2.32.4
 tqdm~=4.67.1
 python-dotenv~=1.0.1
+redis~=5.0.0
+rq~=1.16.1
