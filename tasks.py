@@ -4,11 +4,12 @@ import time
 import pandas as pd
 from rq import get_current_job
 
-from app import get_ip_location
 
 
 def process_csv_job(file_data):
     """Background job to process uploaded CSV files."""
+    # Import here to avoid circular import when app also imports this module
+    from app import get_ip_location
     job = get_current_job()
     os.makedirs('results', exist_ok=True)
 
