@@ -12,6 +12,7 @@ a {
     text-decoration: none;
 }
 
-.likely-fake-row {
-    background-color: #ffe6e6;
+.table-striped tbody tr.likely-fake-row,
+.table-hover tbody tr.likely-fake-row {
+    background-color: #ffe6e6 !important;
 }
