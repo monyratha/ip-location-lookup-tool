@@ -12,6 +12,8 @@ a {
     text-decoration: none;
 }
 
-.likely-fake-row {
+.likely-fake-row,
+.likely-fake-row>td,
+.likely-fake-row>th {
     background-color: #ffe6e6 !important;
 }
