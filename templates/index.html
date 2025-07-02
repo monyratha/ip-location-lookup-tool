@@ -27,7 +27,7 @@
     <button class="btn btn-primary" onclick="uploadCSV()">Process Files</button>
     <div id="uploadResult" class="mt-3"></div>
     <div class="mt-3">
-        <a href="/results">View Processed Files</a>
+        <a href="/results" id="resultsLink">View Processed Files</a>
     </div>
 </div>
 
@@ -112,7 +112,7 @@
         uploadButton.textContent = 'Processing...';
 
         resultDiv.innerHTML = `
-            <div class="result">Initializing...</div>
+            <div class="result" id="initialMessage">Initializing...</div>
             <div class="progress" style="height: 20px;">
                 <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
             </div>
@@ -164,6 +164,8 @@
         const fileResults = document.getElementById('fileResults');
 
         if (data.type === 'start') {
+            const initMsg = document.getElementById('initialMessage');
+            if (initMsg) initMsg.remove();
             progressText.textContent = `Processing ${data.total_files} files (${data.total_ips} IPs total)`;
         } else if (data.type === 'progress') {
             progressBar.style.width = data.percentage + '%';
@@ -179,8 +181,9 @@
         } else if (data.type === 'file_error') {
             fileResults.innerHTML += `<div style="color: red; margin: 5px 0;">❌ ${data.filename}: ${data.message}</div>`;
         } else if (data.type === 'complete') {
+            const initMsg = document.getElementById('initialMessage');
+            if (initMsg) initMsg.remove();
             progressText.textContent = 'All files processed!';
-            fileResults.innerHTML += '<div style="margin-top: 10px;"><a href="/results">View all processed files</a></div>';
             isProcessing = false;
             unblockNavigation();
             const uploadButton = document.querySelector('button[onclick="uploadCSV()"]');
