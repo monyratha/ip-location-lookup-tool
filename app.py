@@ -547,6 +547,8 @@ def fetch_mysql():
     connection_id = data.get('connection_id')
     table = data.get('table')
     ip_column = data.get('ip_column', 'client_ip')
+    start_time = data.get('start_time')
+    end_time = data.get('end_time')
 
     if not connection_id or not table:
         return Response(
@@ -558,6 +560,18 @@ def fetch_mysql():
     if not valid_name.match(table) or not valid_name.match(ip_column):
         return Response(
             f"data: {json.dumps({'type': 'error', 'message': 'Invalid table or column name'})}\n\n",
+            mimetype='text/event-stream',
+        )
+
+    datetime_re = re.compile(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$')
+    if start_time and not datetime_re.match(start_time):
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'Invalid start time'})}\n\n",
+            mimetype='text/event-stream',
+        )
+    if end_time and not datetime_re.match(end_time):
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'Invalid end time'})}\n\n",
             mimetype='text/event-stream',
         )
 
@@ -587,8 +601,15 @@ def fetch_mysql():
 
         cur = mysql_db.cursor()
         try:
-            cur.execute(f'SELECT {ip_column} FROM {table}')
-            ips = [str(r[0]) for r in cur.fetchall()]
+            query = f'SELECT {ip_column}, COUNT(*) as ip_count FROM {table}'
+            params = []
+            if start_time and end_time:
+                query += ' WHERE created_time >= %s AND created_time < %s'
+                params.extend([start_time, end_time])
+            query += f' GROUP BY {ip_column} ORDER BY ip_count DESC'
+            cur.execute(query, params)
+            rows = cur.fetchall()
+            ips = [(str(r[0]), int(r[1])) for r in rows]
         except Exception as e:
             mysql_db.close()
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
@@ -603,10 +624,10 @@ def fetch_mysql():
 
         with open(filepath, 'w', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(['client_ip', 'country', 'region', 'city'])
-            for ip in ips:
+            writer.writerow(['num', 'client_ip', 'ip_count', 'country', 'region', 'city'])
+            for idx, (ip, ip_count) in enumerate(ips, start=1):
                 location = get_ip_location(ip, use_delay=True)
-                writer.writerow([ip, location['country'], location['region'], location['city']])
+                writer.writerow([idx, ip, ip_count, location['country'], location['region'], location['city']])
                 processed += 1
                 if processed % 5 == 0 or processed == total_ips:
                     yield f"data: {json.dumps({'type': 'progress', 'processed': processed, 'total': total_ips})}\n\n"

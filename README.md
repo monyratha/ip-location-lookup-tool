@@ -20,7 +20,9 @@ This Flask web application lets you look up location information for individual 
 5. Open `http://localhost:8080` (or the port set in `.env`) in your browser.
 
 Optional: visit `/connections` in the UI to add MySQL connection details. Once
-configured you can fetch IP data from any table on the main page.
+configured you can fetch IP data from any table on the main page. When fetching
+from MySQL you can also specify a start and end time to run a query that counts
+IP occurrences between those timestamps.
 
 Processed files are saved under `results/` and cached IP data is stored in the database defined by `DB_FILE`.
 

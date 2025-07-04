@@ -24,7 +24,7 @@
     <h3 class="mb-3">MySQL Table Lookup</h3>
     {% if mysql_connections %}
     <div class="row g-2 mb-2">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <select id="mysqlConn" class="form-select">
                 {% for c in mysql_connections %}
                     <option value="{{ c['id'] }}">{{ c['name'] }} ({{ c['database'] }})</option>
@@ -32,8 +32,12 @@
             </select>
         </div>
         <div class="col-md-3"><input type="text" id="mysqlTable" class="form-control" placeholder="Table"/></div>
-        <div class="col-md-3"><input type="text" id="mysqlIpCol" class="form-control" value="client_ip" placeholder="IP column"/></div>
-        <div class="col-md-2"><button class="btn btn-primary w-100" onclick="fetchMySQL()">Fetch</button></div>
+        <div class="col-md-2"><input type="text" id="mysqlIpCol" class="form-control" value="client_ip" placeholder="IP column"/></div>
+        <div class="col-md-2"><input type="datetime-local" id="mysqlStart" class="form-control"/></div>
+        <div class="col-md-2"><input type="datetime-local" id="mysqlEnd" class="form-control"/></div>
+    </div>
+    <div class="row g-2 mb-2">
+        <div class="col-md-2 ms-auto"><button class="btn btn-primary w-100" onclick="fetchMySQL()">Fetch</button></div>
     </div>
     <div id="mysqlProgress" class="mt-2"></div>
     {% else %}
@@ -224,6 +228,8 @@
         const conn = document.getElementById('mysqlConn').value;
         const table = document.getElementById('mysqlTable').value;
         const col = document.getElementById('mysqlIpCol').value || 'client_ip';
+        const start = document.getElementById('mysqlStart').value;
+        const end = document.getElementById('mysqlEnd').value;
         if (!conn || !table) return;
 
         const progress = document.getElementById('mysqlProgress');
@@ -232,7 +238,13 @@
         const response = await fetch('/fetch-mysql', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({connection_id: conn, table: table, ip_column: col})
+            body: JSON.stringify({
+                connection_id: conn,
+                table: table,
+                ip_column: col,
+                start_time: start ? start.replace('T', ' ') + ':00' : null,
+                end_time: end ? end.replace('T', ' ') + ':00' : null
+            })
         });
 
         const reader = response.body.getReader();
