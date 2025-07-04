@@ -7,7 +7,7 @@ import os
 import time
 import json
 import csv
-import pymysql
+import re
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -535,6 +535,14 @@ def delete_connection(conn_id):
 
 @app.route('/fetch-mysql', methods=['POST'])
 def fetch_mysql():
+    try:
+        import pymysql
+    except ImportError:
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'pymysql not installed'})}\n\n",
+            mimetype='text/event-stream',
+        )
+
     data = request.get_json()
     connection_id = data.get('connection_id')
     table = data.get('table')
@@ -543,6 +551,13 @@ def fetch_mysql():
     if not connection_id or not table:
         return Response(
             f"data: {json.dumps({'type': 'error', 'message': 'Missing parameters'})}\n\n",
+            mimetype='text/event-stream',
+        )
+
+    valid_name = re.compile(r'^\w+$')
+    if not valid_name.match(table) or not valid_name.match(ip_column):
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'Invalid table or column name'})}\n\n",
             mimetype='text/event-stream',
         )
 

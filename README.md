@@ -5,7 +5,7 @@ This Flask web application lets you look up location information for individual 
 ## Setup
 
 1. Install Python 3.8 or newer.
-2. Install dependencies:
+2. Install dependencies (MySQL features require `pymysql`):
    ```bash
    pip install -r requirements.txt
    ```
