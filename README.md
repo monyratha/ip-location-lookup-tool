@@ -9,6 +9,8 @@ This Flask web application lets you look up location information for individual 
    ```bash
    pip install -r requirements.txt
    ```
+   *PyMySQL* is required for the optional MySQL table processing feature. If you
+   don't need that feature you can skip installing it.
 3. Copy the sample environment file and adjust values if needed:
    ```bash
    cp .env.example .env

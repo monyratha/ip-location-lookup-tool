@@ -6,7 +6,10 @@ import io
 import os
 import time
 import json
-import pymysql
+try:
+    import pymysql
+except ImportError:  # PyMySQL is optional if MySQL features aren't used
+    pymysql = None
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -459,6 +462,11 @@ def upload_csv():
 
 @app.route('/upload-mysql', methods=['POST'])
 def upload_mysql():
+    if pymysql is None:
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'PyMySQL not installed'})}\n\n",
+            mimetype='text/event-stream'
+        )
     data = request.get_json()
     connections = data.get('connections') if data else None
     if not connections:
