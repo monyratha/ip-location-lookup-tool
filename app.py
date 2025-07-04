@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, Response
+from flask import Flask, render_template, request, jsonify, send_file, Response, redirect, url_for
 import pandas as pd
 import requests
 import sqlite3
@@ -6,6 +6,8 @@ import io
 import os
 import time
 import json
+import csv
+import pymysql
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -36,6 +38,21 @@ def init_db():
 
     # Base table with only the primary key to allow incremental upgrades
     conn.execute("CREATE TABLE IF NOT EXISTS ip_cache (ip TEXT PRIMARY KEY)")
+
+    # Table for stored MySQL connection info
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS mysql_connections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            host TEXT NOT NULL,
+            port INTEGER NOT NULL,
+            user TEXT NOT NULL,
+            password TEXT NOT NULL,
+            database TEXT NOT NULL
+        )
+        """
+    )
 
     # List of required columns and their SQLite types
     required_columns = {
@@ -238,7 +255,13 @@ def get_ip_location(ip, use_delay=False):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    connections = conn.execute(
+        'SELECT id, name, database FROM mysql_connections'
+    ).fetchall()
+    conn.close()
+    return render_template('index.html', mysql_connections=connections)
 
 
 @app.route('/stats')
@@ -473,6 +496,109 @@ def list_results():
 
     files.sort(key=lambda x: x['modified'], reverse=True)
     return render_template('results.html', files=files)
+
+
+@app.route('/connections', methods=['GET', 'POST'])
+def manage_connections():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    if request.method == 'POST':
+        data = request.form
+        conn.execute(
+            'INSERT INTO mysql_connections (name, host, port, user, password, database) VALUES (?,?,?,?,?,?)',
+            (
+                data.get('name'),
+                data.get('host'),
+                int(data.get('port', 3306)),
+                data.get('user'),
+                data.get('password'),
+                data.get('database'),
+            ),
+        )
+        conn.commit()
+
+    rows = conn.execute(
+        'SELECT id, name, host, port, user, database FROM mysql_connections'
+    ).fetchall()
+    conn.close()
+    return render_template('connections.html', connections=rows)
+
+
+@app.route('/connections/delete/<int:conn_id>', methods=['POST'])
+def delete_connection(conn_id):
+    conn = sqlite3.connect(DB_FILE)
+    conn.execute('DELETE FROM mysql_connections WHERE id=?', (conn_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('manage_connections'))
+
+
+@app.route('/fetch-mysql', methods=['POST'])
+def fetch_mysql():
+    data = request.get_json()
+    connection_id = data.get('connection_id')
+    table = data.get('table')
+    ip_column = data.get('ip_column', 'client_ip')
+
+    if not connection_id or not table:
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'Missing parameters'})}\n\n",
+            mimetype='text/event-stream',
+        )
+
+    def generate():
+        db_conn = sqlite3.connect(DB_FILE)
+        db_conn.row_factory = sqlite3.Row
+        row = db_conn.execute(
+            'SELECT * FROM mysql_connections WHERE id=?', (connection_id,)
+        ).fetchone()
+        db_conn.close()
+        if not row:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Connection not found'})}\n\n"
+            return
+
+        try:
+            mysql_db = pymysql.connect(
+                host=row['host'],
+                port=row['port'],
+                user=row['user'],
+                password=row['password'],
+                database=row['database'],
+                cursorclass=pymysql.cursors.Cursor,
+            )
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            return
+
+        cur = mysql_db.cursor()
+        try:
+            cur.execute(f'SELECT {ip_column} FROM {table}')
+            ips = [str(r[0]) for r in cur.fetchall()]
+        except Exception as e:
+            mysql_db.close()
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            return
+        mysql_db.close()
+
+        total_ips = len(ips)
+        processed = 0
+        os.makedirs('results', exist_ok=True)
+        filename = f"mysql_{table}_{int(time.time())}.csv"
+        filepath = os.path.join('results', filename)
+
+        with open(filepath, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['client_ip', 'country', 'region', 'city'])
+            for ip in ips:
+                location = get_ip_location(ip, use_delay=True)
+                writer.writerow([ip, location['country'], location['region'], location['city']])
+                processed += 1
+                if processed % 5 == 0 or processed == total_ips:
+                    yield f"data: {json.dumps({'type': 'progress', 'processed': processed, 'total': total_ips})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'complete', 'filename': filename})}\n\n"
+
+    return Response(generate(), mimetype='text/event-stream')
 
 
 @app.route('/view/<filename>')
