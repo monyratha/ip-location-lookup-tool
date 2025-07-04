@@ -6,6 +6,7 @@ import io
 import os
 import time
 import json
+import pymysql
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -22,6 +23,7 @@ DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 HIGH_TRAFFIC_THRESHOLD = int(os.getenv("HIGH_TRAFFIC_THRESHOLD", "100"))
 SUBNET_IP_THRESHOLD = int(os.getenv("SUBNET_IP_THRESHOLD", "50"))
 SUBNET_VIEW_THRESHOLD = int(os.getenv("SUBNET_VIEW_THRESHOLD", "5000"))
+MYSQL_DEFAULT_PORT = int(os.getenv("MYSQL_PORT", "3306"))
 
 
 @app.template_filter('timestamp_to_date')
@@ -449,6 +451,100 @@ def upload_csv():
 
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'file_complete', 'filename': file_info['filename'], 'status': 'error', 'message': str(e)})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+
+    return Response(generate(), mimetype='text/plain')
+
+
+@app.route('/upload-mysql', methods=['POST'])
+def upload_mysql():
+    data = request.get_json()
+    connections = data.get('connections') if data else None
+    if not connections:
+        return Response(f"data: {json.dumps({'type': 'error', 'message': 'No databases provided'})}\n\n",
+                        mimetype='text/event-stream')
+
+    def generate():
+        os.makedirs('results', exist_ok=True)
+
+        total_dbs = len(connections)
+        total_ips = 0
+        processed_ips = 0
+        start_time = time.time()
+
+        # Count total IPs first
+        for conn_info in connections:
+            try:
+                conn = pymysql.connect(
+                    host=conn_info['host'],
+                    port=int(conn_info.get('port', MYSQL_DEFAULT_PORT)),
+                    user=conn_info['user'],
+                    password=conn_info.get('password', ''),
+                    database=conn_info['database']
+                )
+                cursor = conn.cursor()
+                cursor.execute(f"SELECT {conn_info['ip_column']} FROM {conn_info['table']}")
+                ips = cursor.fetchall()
+                total_ips += len(ips)
+                conn.close()
+            except Exception:
+                continue
+
+        yield f"data: {json.dumps({'type': 'start', 'total_dbs': total_dbs, 'total_ips': total_ips})}\n\n"
+
+        for db_idx, conn_info in enumerate(connections):
+            try:
+                conn = pymysql.connect(
+                    host=conn_info['host'],
+                    port=int(conn_info.get('port', MYSQL_DEFAULT_PORT)),
+                    user=conn_info['user'],
+                    password=conn_info.get('password', ''),
+                    database=conn_info['database']
+                )
+                cursor = conn.cursor()
+                cursor.execute(f"SELECT {conn_info['ip_column']} FROM {conn_info['table']}")
+                ip_rows = cursor.fetchall()
+                file_ips = len(ip_rows)
+                locations = []
+
+                for ip_idx, (ip,) in enumerate(ip_rows):
+                    location = get_ip_location(str(ip), use_delay=True)
+                    locations.append([location['country'], location['region'], location['city']])
+                    processed_ips += 1
+
+                    if (ip_idx + 1) % 5 == 0 or ip_idx == file_ips - 1:
+                        elapsed = time.time() - start_time
+                        rate = processed_ips / elapsed if elapsed > 0 else 0
+                        eta = (total_ips - processed_ips) / rate if rate > 0 else 0
+
+                        yield f"data: {json.dumps({
+                            'type': 'progress',
+                            'db_idx': db_idx + 1,
+                            'total_dbs': total_dbs,
+                            'current_db': conn_info['database'],
+                            'table': conn_info['table'],
+                            'db_progress': ip_idx + 1,
+                            'db_total': file_ips,
+                            'total_progress': processed_ips,
+                            'total_ips': total_ips,
+                            'percentage': round((processed_ips / total_ips) * 100, 1) if total_ips > 0 else 0,
+                            'eta_seconds': round(eta)
+                        })}\n\n"
+
+                df = pd.DataFrame([row[0] for row in ip_rows], columns=[conn_info['ip_column']])
+                df[['country', 'region', 'city']] = locations
+
+                output_filename = f"mysql_{conn_info['database']}_{conn_info['table']}.csv"
+                output_path = os.path.join('results', output_filename)
+                df.to_csv(output_path, index=False)
+
+                conn.close()
+
+                yield f"data: {json.dumps({'type': 'db_complete', 'database': conn_info['database'], 'table': conn_info['table'], 'status': 'success', 'message': f'Processed {file_ips} IPs'})}\n\n"
+
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'db_complete', 'database': conn_info.get('database', ''), 'table': conn_info.get('table', ''), 'status': 'error', 'message': str(e)})}\n\n"
 
         yield f"data: {json.dumps({'type': 'complete'})}\n\n"
 

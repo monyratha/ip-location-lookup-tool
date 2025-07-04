@@ -31,6 +31,25 @@
     </div>
 </div>
 
+<div class="section card p-4 shadow-sm">
+    <h3 class="mb-3">MySQL Table Processing</h3>
+    <p>Fetch IPs from MySQL tables and append location data.</p>
+    <div id="mysqlConnections">
+        <div class="mysql-conn mb-3">
+            <input type="text" class="form-control mb-1 mysql-host" placeholder="Host">
+            <input type="number" class="form-control mb-1 mysql-port" placeholder="Port" value="3306">
+            <input type="text" class="form-control mb-1 mysql-user" placeholder="User">
+            <input type="password" class="form-control mb-1 mysql-password" placeholder="Password">
+            <input type="text" class="form-control mb-1 mysql-db" placeholder="Database">
+            <input type="text" class="form-control mb-1 mysql-table" placeholder="Table">
+            <input type="text" class="form-control mb-1 mysql-column" placeholder="IP Column">
+        </div>
+    </div>
+    <button class="btn btn-secondary mb-3" onclick="addMySQLConnection()">Add Database</button>
+    <button class="btn btn-primary" onclick="uploadMySQL()">Process Databases</button>
+    <div id="mysqlResult" class="mt-3"></div>
+</div>
+
 <script>
     let isProcessing = false;
 
@@ -197,6 +216,118 @@
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
         return `${minutes}m ${remainingSeconds}s`;
+    }
+
+    function addMySQLConnection() {
+        const container = document.getElementById('mysqlConnections');
+        const div = document.createElement('div');
+        div.className = 'mysql-conn mb-3';
+        div.innerHTML = `
+            <input type="text" class="form-control mb-1 mysql-host" placeholder="Host">
+            <input type="number" class="form-control mb-1 mysql-port" placeholder="Port" value="3306">
+            <input type="text" class="form-control mb-1 mysql-user" placeholder="User">
+            <input type="password" class="form-control mb-1 mysql-password" placeholder="Password">
+            <input type="text" class="form-control mb-1 mysql-db" placeholder="Database">
+            <input type="text" class="form-control mb-1 mysql-table" placeholder="Table">
+            <input type="text" class="form-control mb-1 mysql-column" placeholder="IP Column">
+            <button class="btn btn-sm btn-danger mt-1" onclick="this.parentElement.remove()">Remove</button>
+        `;
+        container.appendChild(div);
+    }
+
+    async function uploadMySQL() {
+        const resultDiv = document.getElementById('mysqlResult');
+        if (isProcessing) {
+            alert('Processing is already in progress. Please wait.');
+            return;
+        }
+
+        const connections = [];
+        document.querySelectorAll('#mysqlConnections .mysql-conn').forEach(div => {
+            const host = div.querySelector('.mysql-host').value;
+            const port = parseInt(div.querySelector('.mysql-port').value) || 3306;
+            const user = div.querySelector('.mysql-user').value;
+            const password = div.querySelector('.mysql-password').value;
+            const database = div.querySelector('.mysql-db').value;
+            const table = div.querySelector('.mysql-table').value;
+            const column = div.querySelector('.mysql-column').value;
+            if (host && user && database && table && column) {
+                connections.push({host, port, user, password, database, table, ip_column: column});
+            }
+        });
+
+        if (!connections.length) return;
+
+        isProcessing = true;
+        blockNavigation();
+
+        resultDiv.innerHTML = `
+            <div class="result" id="mysqlInitial">Initializing...</div>
+            <div class="progress" style="height: 20px;">
+                <div class="progress-bar" id="mysqlProgressBar" style="width: 0%;"></div>
+            </div>
+            <div class="progress-text" id="mysqlProgressText">Starting...</div>
+            <div id="mysqlFileResults"></div>
+        `;
+
+        try {
+            const response = await fetch('/upload-mysql', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({connections})
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            updateMySQLProgress(data);
+                        } catch (e) {}
+                    }
+                }
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<div class="result" style="color: red;">Error: ${error.message}</div>`;
+        } finally {
+            isProcessing = false;
+            unblockNavigation();
+        }
+    }
+
+    function updateMySQLProgress(data) {
+        const progressBar = document.getElementById('mysqlProgressBar');
+        const progressText = document.getElementById('mysqlProgressText');
+        const fileResults = document.getElementById('mysqlFileResults');
+
+        if (data.type === 'start') {
+            const initMsg = document.getElementById('mysqlInitial');
+            if (initMsg) initMsg.remove();
+            progressText.textContent = `Processing ${data.total_dbs} databases (${data.total_ips} IPs total)`;
+        } else if (data.type === 'progress') {
+            progressBar.style.width = data.percentage + '%';
+            const eta = data.eta_seconds > 0 ? formatTime(data.eta_seconds) : 'calculating...';
+            progressText.innerHTML = `
+                <div>${data.percentage}% - ${data.total_progress}/${data.total_ips} IPs</div>
+                <div style="font-size: 12px;">DB: ${data.current_db}.${data.table} (${data.db_progress}/${data.db_total}) | ETA: ${eta}</div>`;
+        } else if (data.type === 'db_complete') {
+            const color = data.status === 'success' ? 'green' : 'red';
+            const icon = data.status === 'success' ? '✅' : '❌';
+            fileResults.innerHTML += `<div style="color: ${color}; margin: 5px 0;">${icon} ${data.database}.${data.table}: ${data.message}</div>`;
+        } else if (data.type === 'complete') {
+            const initMsg = document.getElementById('mysqlInitial');
+            if (initMsg) initMsg.remove();
+            progressText.textContent = 'All databases processed!';
+        }
     }
 </script>
 {% endblock %}
