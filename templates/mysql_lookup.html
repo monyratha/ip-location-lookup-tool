@@ -118,6 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTable = localStorage.getItem('mysql_table');
     if (savedTable) document.getElementById('mysqlTable').value = savedTable;
 
+    const savedIpCol = localStorage.getItem('mysql_ip_column');
+    if (savedIpCol) document.getElementById('mysqlIpCol').value = savedIpCol;
+
     const savedRange = localStorage.getItem('mysql_date_range') || 'today';
     document.getElementById('dateRange').value = savedRange;
     applyDateRange(true);
@@ -134,6 +137,7 @@ async function fetchMySQL() {
 
     // Remember selections for next visit
     localStorage.setItem('mysql_table', table);
+    localStorage.setItem('mysql_ip_column', col);
     localStorage.setItem('mysql_date_range', range);
     localStorage.setItem('mysql_start_time', start);
     localStorage.setItem('mysql_end_time', end);

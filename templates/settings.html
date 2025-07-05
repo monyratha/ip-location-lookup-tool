@@ -9,22 +9,8 @@
             <input type="text" id="settingsTable" class="form-control" placeholder="Table name">
         </div>
         <div class="col-md-4">
-            <label class="form-label">Default date range</label>
-            <select id="settingsRange" class="form-select">
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="last7">Last 7 Days</option>
-                <option value="last30">Last 30 Days</option>
-                <option value="custom">Custom</option>
-            </select>
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Start time</label>
-            <input type="text" id="settingsStart" class="form-control" placeholder="YYYY-MM-DD HH:MM:SS">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">End time</label>
-            <input type="text" id="settingsEnd" class="form-control" placeholder="YYYY-MM-DD HH:MM:SS">
+            <label class="form-label">Default IP column</label>
+            <input type="text" id="settingsIpCol" class="form-control" placeholder="client_ip">
         </div>
     </div>
     <div class="row g-2 mb-2">
@@ -36,18 +22,13 @@
 <script>
 function saveSettings() {
     localStorage.setItem('mysql_table', document.getElementById('settingsTable').value);
-    const range = document.getElementById('settingsRange').value;
-    localStorage.setItem('mysql_date_range', range);
-    localStorage.setItem('mysql_start_time', document.getElementById('settingsStart').value);
-    localStorage.setItem('mysql_end_time', document.getElementById('settingsEnd').value);
+    localStorage.setItem('mysql_ip_column', document.getElementById('settingsIpCol').value);
     alert('Settings saved');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settingsTable').value = localStorage.getItem('mysql_table') || '';
-    document.getElementById('settingsRange').value = localStorage.getItem('mysql_date_range') || 'today';
-    document.getElementById('settingsStart').value = localStorage.getItem('mysql_start_time') || '';
-    document.getElementById('settingsEnd').value = localStorage.getItem('mysql_end_time') || '';
+    document.getElementById('settingsIpCol').value = localStorage.getItem('mysql_ip_column') || 'client_ip';
 });
 </script>
 {% endblock %}
