@@ -17,3 +17,7 @@ a {
 .likely-fake-row>th {
     background-color: #ed8b8b !important;
 }
+
+#mysqlProgress {
+    max-width: 400px;
+}

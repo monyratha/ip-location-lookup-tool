@@ -6,7 +6,7 @@
     {% if mysql_connections %}
     <p>Select a connection and table to fetch unique IPs with location data.</p>
     <div class="row g-3 mb-2">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <label class="form-label">Connection</label>
             <select id="mysqlConn" class="form-select">
                 {% for c in mysql_connections %}
@@ -14,21 +14,33 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <label class="form-label">Table</label>
             <input type="text" id="mysqlTable" class="form-control" placeholder="Table name">
         </div>
-        <div class="col-md-2">
+        <div class="col-md-4">
             <label class="form-label">IP column</label>
             <input type="text" id="mysqlIpCol" class="form-control" value="client_ip">
         </div>
-        <div class="col-md-2">
-            <label class="form-label">Start time</label>
-            <input type="datetime-local" id="mysqlStart" class="form-control">
+    </div>
+    <div class="row g-3 mb-2">
+        <div class="col-md-4">
+            <label class="form-label">Date range</label>
+            <select id="dateRange" class="form-select">
+                <option value="custom">Custom</option>
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="last7">Last 7 Days</option>
+                <option value="last30">Last 30 Days</option>
+            </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-4">
+            <label class="form-label">Start time</label>
+            <input type="text" id="mysqlStart" class="form-control" placeholder="YYYY-MM-DD HH:MM:SS">
+        </div>
+        <div class="col-md-4">
             <label class="form-label">End time</label>
-            <input type="datetime-local" id="mysqlEnd" class="form-control">
+            <input type="text" id="mysqlEnd" class="form-control" placeholder="YYYY-MM-DD HH:MM:SS">
         </div>
     </div>
     <div class="row g-2 mb-2">
@@ -36,12 +48,66 @@
             <button class="btn btn-primary w-100" onclick="fetchMySQL()">Fetch</button>
         </div>
     </div>
-    <div id="mysqlProgress" class="mt-2"></div>
+    <div id="mysqlProgress" class="mt-2">
+        <div class="progress" style="display:none; height:20px;">
+            <div class="progress-bar" id="mysqlProgressBar" style="width:0%;"></div>
+        </div>
+        <div id="mysqlProgressText" class="mt-1"></div>
+    </div>
     {% else %}
     <p>No MySQL connections configured. <a href="{{ url_for('manage_connections') }}">Add one</a>.</p>
     {% endif %}
 </div>
 <script>
+function formatForDB(d) {
+    // Convert a Date to YYYY-MM-DD HH:MM:SS in the browser's local timezone
+    const offsetMs = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - offsetMs)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
+}
+
+function setDateInput(elem, d) {
+    elem.value = formatForDB(d);
+}
+
+function applyDateRange() {
+    const range = document.getElementById('dateRange').value;
+    const startInput = document.getElementById('mysqlStart');
+    const endInput = document.getElementById('mysqlEnd');
+    const now = new Date();
+    let start, end;
+    switch(range) {
+        case 'today':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            end = now;
+            break;
+        case 'yesterday':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+        case 'last7':
+            start = new Date(now.getTime() - 7*86400000);
+            end = now;
+            break;
+        case 'last30':
+            start = new Date(now.getTime() - 30*86400000);
+            end = now;
+            break;
+        default:
+            startInput.disabled = false;
+            endInput.disabled = false;
+            return;
+    }
+    setDateInput(startInput, start);
+    setDateInput(endInput, end);
+    startInput.disabled = true;
+    endInput.disabled = true;
+}
+
+document.getElementById('dateRange').addEventListener('change', applyDateRange);
+
 async function fetchMySQL() {
     const conn = document.getElementById('mysqlConn').value;
     const table = document.getElementById('mysqlTable').value;
@@ -51,7 +117,11 @@ async function fetchMySQL() {
     if (!conn || !table) return;
 
     const progress = document.getElementById('mysqlProgress');
-    progress.textContent = 'Starting...';
+    const bar = document.getElementById('mysqlProgressBar');
+    const text = document.getElementById('mysqlProgressText');
+    bar.style.width = '0%';
+    progress.querySelector('.progress').style.display = 'block';
+    text.textContent = 'Starting...';
 
     const response = await fetch('/fetch-mysql', {
         method: 'POST',
@@ -60,8 +130,8 @@ async function fetchMySQL() {
             connection_id: conn,
             table: table,
             ip_column: col,
-            start_time: start ? start.replace('T', ' ') + ':00' : null,
-            end_time: end ? end.replace('T', ' ') + ':00' : null
+            start_time: start || null,
+            end_time: end || null
         })
     });
 
@@ -78,11 +148,14 @@ async function fetchMySQL() {
             if (line.startsWith('data: ')) {
                 const data = JSON.parse(line.slice(6));
                 if (data.type === 'progress') {
-                    progress.textContent = `${data.processed}/${data.total} IPs processed`;
+                    const pct = Math.round(data.processed / data.total * 100);
+                    bar.style.width = pct + '%';
+                    text.textContent = `${data.processed}/${data.total} IPs`;
                 } else if (data.type === 'complete') {
-                    progress.innerHTML = `Done! <a href="/view/${data.filename}">${data.filename}</a>`;
+                    bar.style.width = '100%';
+                    text.innerHTML = `Done! <a href="/view/${data.filename}">${data.filename}</a>`;
                 } else if (data.type === 'error') {
-                    progress.textContent = `Error: ${data.message}`;
+                    text.textContent = `Error: ${data.message}`;
                 }
             }
         }
