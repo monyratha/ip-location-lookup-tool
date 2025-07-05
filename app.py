@@ -640,6 +640,40 @@ def delete_connection(conn_id):
     return redirect(url_for('manage_connections'))
 
 
+@app.route('/connections/test/<int:conn_id>', methods=['POST'])
+def test_connection(conn_id):
+    """Attempt to connect to a MySQL server and return a JSON result."""
+    try:
+        import pymysql
+    except ImportError:
+        return jsonify({"success": False, "message": "pymysql not installed"})
+
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        'SELECT host, port, user, password, database FROM mysql_connections WHERE id=?',
+        (conn_id,),
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"success": False, "message": "Connection not found"})
+
+    try:
+        db = pymysql.connect(
+            host=row['host'],
+            port=row['port'],
+            user=row['user'],
+            password=row['password'],
+            database=row['database'],
+            connect_timeout=5,
+        )
+        db.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
 @app.route('/fetch-mysql', methods=['POST'])
 def fetch_mysql():
     try:
