@@ -4,6 +4,10 @@ body {
     background-color: #f8fafc;
 }
 
+.navbar .nav-link.active {
+    font-weight: 600;
+}
+
 .container {
     max-width: 1100px;
 }
@@ -16,4 +20,12 @@ a {
 .likely-fake-row>td,
 .likely-fake-row>th {
     background-color: #ed8b8b !important;
+}
+
+#mysqlProgress {
+    max-width: 400px;
+}
+
+#mysqlLog {
+    max-width: 400px;
 }

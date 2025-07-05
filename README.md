@@ -1,11 +1,11 @@
 # IP Location Lookup Tool
 
-This Flask web application lets you look up location information for individual IP addresses or bulk process CSV files containing an IP column named `client_ip`. Results are cached in a local SQLite database and summarized on a statistics page.
+This Flask web application lets you look up location information for individual IP addresses or bulk process CSV files containing an IP column named `client_ip`. Results are cached in a local SQLite database and summarized on a statistics page. You can also configure connections to MySQL databases and fetch IPs directly from any table.
 
 ## Setup
 
 1. Install Python 3.8 or newer.
-2. Install dependencies:
+2. Install dependencies (MySQL features require `pymysql`):
    ```bash
    pip install -r requirements.txt
    ```
@@ -18,6 +18,18 @@ This Flask web application lets you look up location information for individual 
    python app.py
    ```
 5. Open `http://localhost:8080` (or the port set in `.env`) in your browser.
+
+Optional: visit `/connections` in the UI to add MySQL connection details. Once
+configured you can fetch IP data from any table on the main page. When fetching
+from MySQL you can also specify a start and end time to run a query that counts
+IP occurrences between those timestamps.
+
+Results generated from the DB lookup now include the configured connection name
+in the filename (e.g. `mysql_myconn_table_timestamp.csv`) so it's easy to see
+where each file originated.
+
+Use the `/settings` page to change the default table/column and tweak the
+thresholds used for dynamic IP classification without editing `.env`.
 
 Processed files are saved under `results/` and cached IP data is stored in the database defined by `DB_FILE`.
 

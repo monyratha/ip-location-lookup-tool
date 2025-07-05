@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, Response
+from flask import Flask, render_template, request, jsonify, send_file, Response, redirect, url_for
 import pandas as pd
 import requests
 import sqlite3
@@ -6,6 +6,8 @@ import io
 import os
 import time
 import json
+import csv
+import re
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -36,6 +38,61 @@ def init_db():
 
     # Base table with only the primary key to allow incremental upgrades
     conn.execute("CREATE TABLE IF NOT EXISTS ip_cache (ip TEXT PRIMARY KEY)")
+
+    # Table for stored MySQL connection info
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS mysql_connections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            host TEXT NOT NULL,
+            port INTEGER NOT NULL,
+            user TEXT NOT NULL,
+            password TEXT NOT NULL,
+            database TEXT NOT NULL
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS app_settings (
+            id INTEGER PRIMARY KEY CHECK(id = 1),
+            default_table TEXT,
+            default_ip_column TEXT,
+            high_traffic_threshold INTEGER,
+            subnet_ip_threshold INTEGER,
+            subnet_view_threshold INTEGER
+        )
+        """
+    )
+
+    cursor = conn.execute("PRAGMA table_info(app_settings)")
+    existing_app_cols = {row[1] for row in cursor.fetchall()}
+    if 'high_traffic_threshold' not in existing_app_cols:
+        conn.execute("ALTER TABLE app_settings ADD COLUMN high_traffic_threshold INTEGER")
+        conn.execute(
+            "UPDATE app_settings SET high_traffic_threshold=? WHERE id=1",
+            (HIGH_TRAFFIC_THRESHOLD,),
+        )
+    if 'subnet_ip_threshold' not in existing_app_cols:
+        conn.execute("ALTER TABLE app_settings ADD COLUMN subnet_ip_threshold INTEGER")
+        conn.execute(
+            "UPDATE app_settings SET subnet_ip_threshold=? WHERE id=1",
+            (SUBNET_IP_THRESHOLD,),
+        )
+    if 'subnet_view_threshold' not in existing_app_cols:
+        conn.execute("ALTER TABLE app_settings ADD COLUMN subnet_view_threshold INTEGER")
+        conn.execute(
+            "UPDATE app_settings SET subnet_view_threshold=? WHERE id=1",
+            (SUBNET_VIEW_THRESHOLD,),
+        )
+
+    conn.execute(
+        "INSERT OR IGNORE INTO app_settings (id, default_table, default_ip_column, high_traffic_threshold, subnet_ip_threshold, subnet_view_threshold) "
+        "VALUES (1, '', 'client_ip', ?, ?, ?)",
+        (HIGH_TRAFFIC_THRESHOLD, SUBNET_IP_THRESHOLD, SUBNET_VIEW_THRESHOLD),
+    )
 
     # List of required columns and their SQLite types
     required_columns = {
@@ -239,6 +296,79 @@ def get_ip_location(ip, use_delay=False):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+@app.route('/mysql-lookup')
+def mysql_lookup_page():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    connections = conn.execute(
+        'SELECT id, name, database FROM mysql_connections'
+    ).fetchall()
+    settings_row = conn.execute(
+        'SELECT default_table, default_ip_column FROM app_settings WHERE id=1'
+    ).fetchone()
+    conn.close()
+    default_table = settings_row['default_table'] if settings_row else ''
+    default_ip_col = settings_row['default_ip_column'] if settings_row else 'client_ip'
+    return render_template(
+        'mysql_lookup.html',
+        mysql_connections=connections,
+        default_table=default_table,
+        default_ip_col=default_ip_col,
+    )
+
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings_page():
+    """Configure default table and IP column for MySQL lookups."""
+    conn = sqlite3.connect(DB_FILE)
+    if request.method == 'POST':
+        conn.execute(
+            'UPDATE app_settings SET default_table=?, default_ip_column=?, high_traffic_threshold=?, subnet_ip_threshold=?, subnet_view_threshold=? WHERE id=1',
+            (
+                request.form.get('default_table', ''),
+                request.form.get('default_ip_column', 'client_ip'),
+                int(request.form.get('high_traffic_threshold', HIGH_TRAFFIC_THRESHOLD)),
+                int(request.form.get('subnet_ip_threshold', SUBNET_IP_THRESHOLD)),
+                int(request.form.get('subnet_view_threshold', SUBNET_VIEW_THRESHOLD)),
+            ),
+        )
+        conn.commit()
+    row = conn.execute(
+        'SELECT default_table, default_ip_column, high_traffic_threshold, subnet_ip_threshold, subnet_view_threshold FROM app_settings WHERE id=1'
+    ).fetchone()
+
+    total_cursor = conn.execute('SELECT COUNT(*) FROM ip_cache')
+    total_ips = total_cursor.fetchone()[0]
+
+    unknown_cursor = conn.execute(
+        'SELECT COUNT(*) FROM ip_cache WHERE country = "Unknown" OR region = "Unknown" OR city = "Unknown"'
+    )
+    unknown_count = unknown_cursor.fetchone()[0]
+
+    error_cursor = conn.execute(
+        'SELECT COUNT(*) FROM ip_cache WHERE country = "Error" OR region = "Error" OR city = "Error"'
+    )
+    error_count = error_cursor.fetchone()[0]
+
+    conn.close()
+    default_table = row[0] if row else ''
+    default_ip_col = row[1] if row else 'client_ip'
+    high_traffic = row[2] if row and row[2] is not None else HIGH_TRAFFIC_THRESHOLD
+    subnet_ip = row[3] if row and row[3] is not None else SUBNET_IP_THRESHOLD
+    subnet_view = row[4] if row and row[4] is not None else SUBNET_VIEW_THRESHOLD
+    return render_template(
+        'settings.html',
+        default_table=default_table,
+        default_ip_col=default_ip_col,
+        high_traffic_threshold=high_traffic,
+        subnet_ip_threshold=subnet_ip,
+        subnet_view_threshold=subnet_view,
+        total_ips=total_ips,
+        unknown_count=unknown_count,
+        error_count=error_count,
+    )
 
 
 @app.route('/stats')
@@ -475,6 +605,189 @@ def list_results():
     return render_template('results.html', files=files)
 
 
+@app.route('/connections', methods=['GET', 'POST'])
+def manage_connections():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    if request.method == 'POST':
+        data = request.form
+        conn.execute(
+            'INSERT INTO mysql_connections (name, host, port, user, password, database) VALUES (?,?,?,?,?,?)',
+            (
+                data.get('name'),
+                data.get('host'),
+                int(data.get('port', 3306)),
+                data.get('user'),
+                data.get('password'),
+                data.get('database'),
+            ),
+        )
+        conn.commit()
+
+    rows = conn.execute(
+        'SELECT id, name, host, port, user, database FROM mysql_connections'
+    ).fetchall()
+    conn.close()
+    return render_template('connections.html', connections=rows)
+
+
+@app.route('/connections/delete/<int:conn_id>', methods=['POST'])
+def delete_connection(conn_id):
+    conn = sqlite3.connect(DB_FILE)
+    conn.execute('DELETE FROM mysql_connections WHERE id=?', (conn_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('manage_connections'))
+
+
+@app.route('/connections/test/<int:conn_id>', methods=['POST'])
+def test_connection(conn_id):
+    """Attempt to connect to a MySQL server and return a JSON result."""
+    try:
+        import pymysql
+    except ImportError:
+        return jsonify({"success": False, "message": "pymysql not installed"})
+
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        'SELECT host, port, user, password, database FROM mysql_connections WHERE id=?',
+        (conn_id,),
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"success": False, "message": "Connection not found"})
+
+    try:
+        db = pymysql.connect(
+            host=row['host'],
+            port=row['port'],
+            user=row['user'],
+            password=row['password'],
+            database=row['database'],
+            connect_timeout=5,
+        )
+        db.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route('/fetch-mysql', methods=['POST'])
+def fetch_mysql():
+    try:
+        import pymysql
+    except ImportError:
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'pymysql not installed'})}\n\n",
+            mimetype='text/event-stream',
+        )
+
+    data = request.get_json()
+    connection_id = data.get('connection_id')
+    table = data.get('table')
+    ip_column = data.get('ip_column', 'client_ip')
+    start_time = data.get('start_time')
+    end_time = data.get('end_time')
+
+    if not connection_id or not table:
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'Missing parameters'})}\n\n",
+            mimetype='text/event-stream',
+        )
+
+    valid_name = re.compile(r'^\w+$')
+    if not valid_name.match(table) or not valid_name.match(ip_column):
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'Invalid table or column name'})}\n\n",
+            mimetype='text/event-stream',
+        )
+
+    datetime_re = re.compile(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$')
+    if start_time and not datetime_re.match(start_time):
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'Invalid start time'})}\n\n",
+            mimetype='text/event-stream',
+        )
+    if end_time and not datetime_re.match(end_time):
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'Invalid end time'})}\n\n",
+            mimetype='text/event-stream',
+        )
+
+
+    def generate():
+        db_conn = sqlite3.connect(DB_FILE)
+        db_conn.row_factory = sqlite3.Row
+        row = db_conn.execute(
+            'SELECT * FROM mysql_connections WHERE id=?', (connection_id,)
+        ).fetchone()
+        db_conn.close()
+        if not row:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Connection not found'})}\n\n"
+            return
+
+        try:
+            yield f"data: {json.dumps({'type': 'log', 'message': 'Connecting to MySQL...'})}\n\n"
+            mysql_db = pymysql.connect(
+                host=row['host'],
+                port=row['port'],
+                user=row['user'],
+                password=row['password'],
+                database=row['database'],
+                cursorclass=pymysql.cursors.Cursor,
+            )
+            yield f"data: {json.dumps({'type': 'log', 'message': 'Connected to MySQL'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            return
+
+        cur = mysql_db.cursor()
+        try:
+            query = f'SELECT {ip_column}, COUNT(*) as ip_count FROM {table}'
+            yield f"data: {json.dumps({'type': 'log', 'message': 'Running query'})}\n\n"
+            params = []
+            if start_time and end_time:
+                query += ' WHERE created_time >= %s AND created_time < %s'
+                params.extend([start_time, end_time])
+            query += f' GROUP BY {ip_column} ORDER BY ip_count DESC'
+            cur.execute(query, params)
+            rows = cur.fetchall()
+            ips = [(str(r[0]), int(r[1])) for r in rows]
+            yield f"data: {json.dumps({'type': 'log', 'message': f'Query returned {len(ips)} rows'})}\n\n"
+        except Exception as e:
+            mysql_db.close()
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            return
+        mysql_db.close()
+
+        total_ips = len(ips)
+        processed = 0
+        os.makedirs('results', exist_ok=True)
+        conn_name = re.sub(r'[^A-Za-z0-9]+', '_', row['name']).strip('_')
+        filename = f"mysql_{conn_name}_{table}_{int(time.time())}.csv"
+        filepath = os.path.join('results', filename)
+
+        yield f"data: {json.dumps({'type': 'log', 'message': f'Writing to {filename}'})}\n\n"
+
+        with open(filepath, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['num', 'client_ip', 'ip_count', 'country', 'region', 'city'])
+            for idx, (ip, ip_count) in enumerate(ips, start=1):
+                location = get_ip_location(ip, use_delay=True)
+                writer.writerow([idx, ip, ip_count, location['country'], location['region'], location['city']])
+                processed += 1
+                if processed % 5 == 0 or processed == total_ips:
+                    yield f"data: {json.dumps({'type': 'progress', 'processed': processed, 'total': total_ips})}\n\n"
+                    yield f"data: {json.dumps({'type': 'log', 'message': f'Processed {processed}/{total_ips}'})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'log', 'message': 'Completed processing'})}\n\n"
+        yield f"data: {json.dumps({'type': 'complete', 'filename': filename})}\n\n"
+
+    return Response(generate(), mimetype='text/event-stream')
+
+
 @app.route('/view/<filename>')
 def view_result(filename):
     filepath = os.path.join('results', filename)
@@ -487,6 +800,15 @@ def view_result(filename):
     dynamic_counts = None
     classification_rules = None
 
+    conn_settings = sqlite3.connect(DB_FILE)
+    row = conn_settings.execute(
+        'SELECT high_traffic_threshold, subnet_ip_threshold, subnet_view_threshold FROM app_settings WHERE id=1'
+    ).fetchone()
+    conn_settings.close()
+    high_traffic = int(row[0]) if row and row[0] is not None else HIGH_TRAFFIC_THRESHOLD
+    subnet_ip_thres = int(row[1]) if row and row[1] is not None else SUBNET_IP_THRESHOLD
+    subnet_view_thres = int(row[2]) if row and row[2] is not None else SUBNET_VIEW_THRESHOLD
+
     if {'client_ip', 'ip_count'}.issubset(df.columns):
         df['subnet_24'] = df['client_ip'].astype(str).apply(lambda x: '.'.join(x.split('.')[:3]))
 
@@ -497,12 +819,12 @@ def view_result(filename):
         ).reset_index()
 
         suspicious_subnets = subnet_stats[
-            (subnet_stats['ip_count'] > SUBNET_IP_THRESHOLD) &
-            (subnet_stats['total_views'] > SUBNET_VIEW_THRESHOLD)
+            (subnet_stats['ip_count'] > subnet_ip_thres) &
+            (subnet_stats['total_views'] > subnet_view_thres)
         ]['subnet_24'].tolist()
 
         def classify_dynamic(row):
-            if row['ip_count'] >= HIGH_TRAFFIC_THRESHOLD:
+            if row['ip_count'] >= high_traffic:
                 return 'likely_fake'
             if row['subnet_24'] in suspicious_subnets:
                 return 'likely_fake'
@@ -515,8 +837,8 @@ def view_result(filename):
         dynamic_counts = summary.set_index('classification').to_dict(orient='index')
 
         classification_rules = [
-            f"Likely fake if IP count >= {HIGH_TRAFFIC_THRESHOLD}",
-            f"Likely fake if subnet has > {SUBNET_IP_THRESHOLD} IPs and > {SUBNET_VIEW_THRESHOLD} total views",
+            f"Likely fake if IP count >= {high_traffic}",
+            f"Likely fake if subnet has > {subnet_ip_thres} IPs and > {subnet_view_thres} total views",
             "Otherwise likely real",
         ]
 

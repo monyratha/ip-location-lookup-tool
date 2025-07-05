@@ -20,9 +20,27 @@
             </button>
             <div class="collapse navbar-collapse" id="mainNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('view_stats') }}"><i class="bi bi-bar-chart"></i> Statistics</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('view_cache') }}"><i class="bi bi-hdd"></i> Cache</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('list_results') }}"><i class="bi bi-folder2-open"></i> Files</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('index') }}"><i class="bi bi-house"></i> Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/stats') %}active{% endif %}" href="{{ url_for('view_stats') }}"><i class="bi bi-bar-chart"></i> Statistics</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/cache') %}active{% endif %}" href="{{ url_for('view_cache') }}"><i class="bi bi-hdd"></i> Cache</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/results') or request.path.startswith('/view') %}active{% endif %}" href="{{ url_for('list_results') }}"><i class="bi bi-folder2-open"></i> Files</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/mysql-lookup') %}active{% endif %}" href="{{ url_for('mysql_lookup_page') }}"><i class="bi bi-search"></i> DB Lookup</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/connections') %}active{% endif %}" href="{{ url_for('manage_connections') }}"><i class="bi bi-database"></i> MySQL</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path.startswith('/settings') %}active{% endif %}" href="{{ url_for('settings_page') }}"><i class="bi bi-gear"></i> Settings</a>
+                    </li>
                 </ul>
             </div>
         </div>
