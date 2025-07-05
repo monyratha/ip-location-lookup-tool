@@ -16,11 +16,11 @@
         </div>
         <div class="col-md-4">
             <label class="form-label">Table</label>
-            <input type="text" id="mysqlTable" class="form-control" placeholder="Table name">
+            <input type="text" id="mysqlTable" class="form-control" placeholder="Table name" value="{{ default_table }}">
         </div>
         <div class="col-md-4">
             <label class="form-label">IP column</label>
-            <input type="text" id="mysqlIpCol" class="form-control" value="client_ip">
+            <input type="text" id="mysqlIpCol" class="form-control" value="{{ default_ip_col }}">
         </div>
     </div>
     <div class="row g-3 mb-2">
@@ -115,12 +115,6 @@ function applyDateRange(useSaved=false) {
 document.getElementById('dateRange').addEventListener('change', applyDateRange);
 
 document.addEventListener('DOMContentLoaded', () => {
-    const savedTable = localStorage.getItem('mysql_table');
-    if (savedTable) document.getElementById('mysqlTable').value = savedTable;
-
-    const savedIpCol = localStorage.getItem('mysql_ip_column');
-    if (savedIpCol) document.getElementById('mysqlIpCol').value = savedIpCol;
-
     const savedRange = localStorage.getItem('mysql_date_range') || 'today';
     document.getElementById('dateRange').value = savedRange;
     applyDateRange(true);
@@ -136,8 +130,6 @@ async function fetchMySQL() {
     if (!conn || !table) return;
 
     // Remember selections for next visit
-    localStorage.setItem('mysql_table', table);
-    localStorage.setItem('mysql_ip_column', col);
     localStorage.setItem('mysql_date_range', range);
     localStorage.setItem('mysql_start_time', start);
     localStorage.setItem('mysql_end_time', end);

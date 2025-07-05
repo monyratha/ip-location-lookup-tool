@@ -2,33 +2,21 @@
 {% block title %}Settings{% endblock %}
 {% block content %}
 <h1 class="mb-4">⚙️ Settings</h1>
-<div class="card p-4 shadow-sm">
+<form method="post" class="card p-4 shadow-sm">
     <div class="row g-3 mb-2">
         <div class="col-md-4">
             <label class="form-label">Default table</label>
-            <input type="text" id="settingsTable" class="form-control" placeholder="Table name">
+            <input type="text" name="default_table" class="form-control" placeholder="Table name" value="{{ default_table }}">
         </div>
         <div class="col-md-4">
             <label class="form-label">Default IP column</label>
-            <input type="text" id="settingsIpCol" class="form-control" placeholder="client_ip">
+            <input type="text" name="default_ip_column" class="form-control" placeholder="client_ip" value="{{ default_ip_col }}">
         </div>
     </div>
     <div class="row g-2 mb-2">
         <div class="col-md-2 ms-auto">
-            <button class="btn btn-primary w-100" onclick="saveSettings()">Save</button>
+            <button type="submit" class="btn btn-primary w-100">Save</button>
         </div>
     </div>
-</div>
-<script>
-function saveSettings() {
-    localStorage.setItem('mysql_table', document.getElementById('settingsTable').value);
-    localStorage.setItem('mysql_ip_column', document.getElementById('settingsIpCol').value);
-    alert('Settings saved');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('settingsTable').value = localStorage.getItem('mysql_table') || '';
-    document.getElementById('settingsIpCol').value = localStorage.getItem('mysql_ip_column') || 'client_ip';
-});
-</script>
+</form>
 {% endblock %}
