@@ -24,6 +24,9 @@ configured you can fetch IP data from any table on the main page. When fetching
 from MySQL you can also specify a start and end time to run a query that counts
 IP occurrences between those timestamps.
 
+Use the `/settings` page to change the default table/column and tweak the
+thresholds used for dynamic IP classification without editing `.env`.
+
 Processed files are saved under `results/` and cached IP data is stored in the database defined by `DB_FILE`.
 
 ## Cached Data

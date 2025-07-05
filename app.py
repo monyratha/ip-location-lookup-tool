@@ -59,12 +59,39 @@ def init_db():
         CREATE TABLE IF NOT EXISTS app_settings (
             id INTEGER PRIMARY KEY CHECK(id = 1),
             default_table TEXT,
-            default_ip_column TEXT
+            default_ip_column TEXT,
+            high_traffic_threshold INTEGER,
+            subnet_ip_threshold INTEGER,
+            subnet_view_threshold INTEGER
         )
         """
     )
+
+    cursor = conn.execute("PRAGMA table_info(app_settings)")
+    existing_app_cols = {row[1] for row in cursor.fetchall()}
+    if 'high_traffic_threshold' not in existing_app_cols:
+        conn.execute("ALTER TABLE app_settings ADD COLUMN high_traffic_threshold INTEGER")
+        conn.execute(
+            "UPDATE app_settings SET high_traffic_threshold=? WHERE id=1",
+            (HIGH_TRAFFIC_THRESHOLD,),
+        )
+    if 'subnet_ip_threshold' not in existing_app_cols:
+        conn.execute("ALTER TABLE app_settings ADD COLUMN subnet_ip_threshold INTEGER")
+        conn.execute(
+            "UPDATE app_settings SET subnet_ip_threshold=? WHERE id=1",
+            (SUBNET_IP_THRESHOLD,),
+        )
+    if 'subnet_view_threshold' not in existing_app_cols:
+        conn.execute("ALTER TABLE app_settings ADD COLUMN subnet_view_threshold INTEGER")
+        conn.execute(
+            "UPDATE app_settings SET subnet_view_threshold=? WHERE id=1",
+            (SUBNET_VIEW_THRESHOLD,),
+        )
+
     conn.execute(
-        "INSERT OR IGNORE INTO app_settings (id, default_table, default_ip_column) VALUES (1, '', 'client_ip')"
+        "INSERT OR IGNORE INTO app_settings (id, default_table, default_ip_column, high_traffic_threshold, subnet_ip_threshold, subnet_view_threshold) "
+        "VALUES (1, '', 'client_ip', ?, ?, ?)",
+        (HIGH_TRAFFIC_THRESHOLD, SUBNET_IP_THRESHOLD, SUBNET_VIEW_THRESHOLD),
     )
 
     # List of required columns and their SQLite types
@@ -298,23 +325,32 @@ def settings_page():
     conn = sqlite3.connect(DB_FILE)
     if request.method == 'POST':
         conn.execute(
-            'UPDATE app_settings SET default_table=?, default_ip_column=? WHERE id=1',
+            'UPDATE app_settings SET default_table=?, default_ip_column=?, high_traffic_threshold=?, subnet_ip_threshold=?, subnet_view_threshold=? WHERE id=1',
             (
                 request.form.get('default_table', ''),
                 request.form.get('default_ip_column', 'client_ip'),
+                int(request.form.get('high_traffic_threshold', HIGH_TRAFFIC_THRESHOLD)),
+                int(request.form.get('subnet_ip_threshold', SUBNET_IP_THRESHOLD)),
+                int(request.form.get('subnet_view_threshold', SUBNET_VIEW_THRESHOLD)),
             ),
         )
         conn.commit()
     row = conn.execute(
-        'SELECT default_table, default_ip_column FROM app_settings WHERE id=1'
+        'SELECT default_table, default_ip_column, high_traffic_threshold, subnet_ip_threshold, subnet_view_threshold FROM app_settings WHERE id=1'
     ).fetchone()
     conn.close()
     default_table = row[0] if row else ''
     default_ip_col = row[1] if row else 'client_ip'
+    high_traffic = row[2] if row and row[2] is not None else HIGH_TRAFFIC_THRESHOLD
+    subnet_ip = row[3] if row and row[3] is not None else SUBNET_IP_THRESHOLD
+    subnet_view = row[4] if row and row[4] is not None else SUBNET_VIEW_THRESHOLD
     return render_template(
         'settings.html',
         default_table=default_table,
         default_ip_col=default_ip_col,
+        high_traffic_threshold=high_traffic,
+        subnet_ip_threshold=subnet_ip,
+        subnet_view_threshold=subnet_view,
     )
 
 
@@ -704,6 +740,15 @@ def view_result(filename):
     dynamic_counts = None
     classification_rules = None
 
+    conn_settings = sqlite3.connect(DB_FILE)
+    row = conn_settings.execute(
+        'SELECT high_traffic_threshold, subnet_ip_threshold, subnet_view_threshold FROM app_settings WHERE id=1'
+    ).fetchone()
+    conn_settings.close()
+    high_traffic = int(row[0]) if row and row[0] is not None else HIGH_TRAFFIC_THRESHOLD
+    subnet_ip_thres = int(row[1]) if row and row[1] is not None else SUBNET_IP_THRESHOLD
+    subnet_view_thres = int(row[2]) if row and row[2] is not None else SUBNET_VIEW_THRESHOLD
+
     if {'client_ip', 'ip_count'}.issubset(df.columns):
         df['subnet_24'] = df['client_ip'].astype(str).apply(lambda x: '.'.join(x.split('.')[:3]))
 
@@ -714,12 +759,12 @@ def view_result(filename):
         ).reset_index()
 
         suspicious_subnets = subnet_stats[
-            (subnet_stats['ip_count'] > SUBNET_IP_THRESHOLD) &
-            (subnet_stats['total_views'] > SUBNET_VIEW_THRESHOLD)
+            (subnet_stats['ip_count'] > subnet_ip_thres) &
+            (subnet_stats['total_views'] > subnet_view_thres)
         ]['subnet_24'].tolist()
 
         def classify_dynamic(row):
-            if row['ip_count'] >= HIGH_TRAFFIC_THRESHOLD:
+            if row['ip_count'] >= high_traffic:
                 return 'likely_fake'
             if row['subnet_24'] in suspicious_subnets:
                 return 'likely_fake'
@@ -732,8 +777,8 @@ def view_result(filename):
         dynamic_counts = summary.set_index('classification').to_dict(orient='index')
 
         classification_rules = [
-            f"Likely fake if IP count >= {HIGH_TRAFFIC_THRESHOLD}",
-            f"Likely fake if subnet has > {SUBNET_IP_THRESHOLD} IPs and > {SUBNET_VIEW_THRESHOLD} total views",
+            f"Likely fake if IP count >= {high_traffic}",
+            f"Likely fake if subnet has > {subnet_ip_thres} IPs and > {subnet_view_thres} total views",
             "Otherwise likely real",
         ]
 
