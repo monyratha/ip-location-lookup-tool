@@ -3,48 +3,64 @@
 {% block content %}
 <h1 class="mb-4">⚙️ Settings</h1>
 
-<form method="post" class="card p-4 shadow-sm mb-4">
-    <h5 class="mb-3">MySQL Defaults</h5>
-    <div class="row g-3 mb-3">
-        <div class="col-md-4">
-            <label class="form-label">Default table</label>
-            <input type="text" name="default_table" class="form-control" placeholder="Table name" value="{{ default_table }}">
+<form method="post">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">MySQL Defaults</h5>
         </div>
-        <div class="col-md-4">
-            <label class="form-label">Default IP column</label>
-            <input type="text" name="default_ip_column" class="form-control" placeholder="client_ip" value="{{ default_ip_col }}">
-        </div>
-    </div>
-
-    <h5 class="mb-3">Dynamic IP Classification</h5>
-    <div class="row g-3 mb-3">
-        <div class="col-md-4">
-            <label class="form-label">High traffic threshold</label>
-            <input type="number" name="high_traffic_threshold" class="form-control" value="{{ high_traffic_threshold }}">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Subnet IP threshold</label>
-            <input type="number" name="subnet_ip_threshold" class="form-control" value="{{ subnet_ip_threshold }}">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Subnet view threshold</label>
-            <input type="number" name="subnet_view_threshold" class="form-control" value="{{ subnet_view_threshold }}">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Default table</label>
+                    <input type="text" name="default_table" class="form-control" placeholder="Table name" value="{{ default_table }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Default IP column</label>
+                    <input type="text" name="default_ip_column" class="form-control" placeholder="client_ip" value="{{ default_ip_col }}">
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="row g-2 mb-2">
-        <div class="col-md-2 ms-auto">
-            <button type="submit" class="btn btn-primary w-100">Save</button>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Dynamic IP Classification</h5>
         </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">High traffic threshold</label>
+                    <input type="number" name="high_traffic_threshold" class="form-control" value="{{ high_traffic_threshold }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Subnet IP threshold</label>
+                    <input type="number" name="subnet_ip_threshold" class="form-control" value="{{ subnet_ip_threshold }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Subnet view threshold</label>
+                    <input type="number" name="subnet_view_threshold" class="form-control" value="{{ subnet_view_threshold }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-end mb-4">
+        <button type="submit" class="btn btn-primary">Save</button>
     </div>
 </form>
 
-<div class="card p-4 shadow-sm bg-light border border-danger">
-    <h3>⚠️ Danger Zone</h3>
-    <p>Fix problematic cache entries or clean all data (cleaning cannot be undone!)</p>
-    <button onclick="fixCache()" class="btn btn-success me-2">Fix Unknown/Error IPs ({{ unknown_count + error_count }})</button>
-    <button onclick="cleanCache()" class="btn btn-danger me-2">Clean All Cache ({{ total_ips }} records)</button>
-    <button onclick="cleanResults()" class="btn btn-danger">Clean All Processed Files</button>
+<div class="card shadow-sm mb-4 border-danger">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0">⚠️ Danger Zone</h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-3">Fix problematic cache entries or clean all data (cleaning cannot be undone!)</p>
+        <div class="d-flex flex-wrap gap-2">
+            <button onclick="fixCache()" class="btn btn-success">Fix Unknown/Error IPs ({{ unknown_count + error_count }})</button>
+            <button onclick="cleanCache()" class="btn btn-danger">Clean All Cache ({{ total_ips }} records)</button>
+            <button onclick="cleanResults()" class="btn btn-danger">Clean All Processed Files</button>
+        </div>
+    </div>
 </div>
 
 <script>
