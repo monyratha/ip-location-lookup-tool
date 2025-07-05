@@ -269,6 +269,12 @@ def mysql_lookup_page():
     return render_template('mysql_lookup.html', mysql_connections=connections)
 
 
+@app.route('/settings')
+def settings_page():
+    """Render the preferences page for MySQL lookup defaults."""
+    return render_template('settings.html')
+
+
 @app.route('/stats')
 def view_stats():
     conn = sqlite3.connect(DB_FILE)
