@@ -2,8 +2,10 @@
 {% block title %}Settings{% endblock %}
 {% block content %}
 <h1 class="mb-4">⚙️ Settings</h1>
-<form method="post" class="card p-4 shadow-sm">
-    <div class="row g-3 mb-2">
+
+<form method="post" class="card p-4 shadow-sm mb-4">
+    <h5 class="mb-3">MySQL Defaults</h5>
+    <div class="row g-3 mb-3">
         <div class="col-md-4">
             <label class="form-label">Default table</label>
             <input type="text" name="default_table" class="form-control" placeholder="Table name" value="{{ default_table }}">
@@ -13,7 +15,9 @@
             <input type="text" name="default_ip_column" class="form-control" placeholder="client_ip" value="{{ default_ip_col }}">
         </div>
     </div>
-    <div class="row g-3 mb-2">
+
+    <h5 class="mb-3">Dynamic IP Classification</h5>
+    <div class="row g-3 mb-3">
         <div class="col-md-4">
             <label class="form-label">High traffic threshold</label>
             <input type="number" name="high_traffic_threshold" class="form-control" value="{{ high_traffic_threshold }}">
@@ -27,10 +31,79 @@
             <input type="number" name="subnet_view_threshold" class="form-control" value="{{ subnet_view_threshold }}">
         </div>
     </div>
+
     <div class="row g-2 mb-2">
         <div class="col-md-2 ms-auto">
             <button type="submit" class="btn btn-primary w-100">Save</button>
         </div>
     </div>
 </form>
+
+<div class="card p-4 shadow-sm bg-light border border-danger">
+    <h3>⚠️ Danger Zone</h3>
+    <p>Fix problematic cache entries or clean all data (cleaning cannot be undone!)</p>
+    <button onclick="fixCache()" class="btn btn-success me-2">Fix Unknown/Error IPs ({{ unknown_count + error_count }})</button>
+    <button onclick="cleanCache()" class="btn btn-danger me-2">Clean All Cache ({{ total_ips }} records)</button>
+    <button onclick="cleanResults()" class="btn btn-danger">Clean All Processed Files</button>
+</div>
+
+<script>
+    async function cleanCache() {
+        if (!confirm('Are you sure you want to delete ALL cached IP data? This cannot be undone!')) return;
+
+        try {
+            const response = await fetch('/clean-cache', { method: 'POST' });
+            if (response.ok) {
+                alert('Cache cleaned successfully!');
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.error}`);
+            }
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+        }
+    }
+
+    async function fixCache() {
+        if (!confirm('This will re-lookup all IPs with Unknown/Error data. Continue?')) return;
+
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'Fixing...';
+
+        try {
+            const response = await fetch('/fix-cache', { method: 'POST' });
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`Fixed ${data.fixed} out of ${data.total} problematic IPs!`);
+                location.reload();
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Fix Unknown/Error IPs';
+        }
+    }
+
+    async function cleanResults() {
+        if (!confirm('Are you sure you want to delete ALL processed files? This cannot be undone!')) return;
+
+        try {
+            const response = await fetch('/clean-results', { method: 'POST' });
+            if (response.ok) {
+                alert('Processed files cleaned successfully!');
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.error}`);
+            }
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+        }
+    }
+</script>
 {% endblock %}
