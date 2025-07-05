@@ -60,7 +60,10 @@
 </div>
 <script>
 function setDateInput(elem, d) {
-    elem.valueAsNumber = d.getTime() - d.getTimezoneOffset() * 60000;
+    // valueAsNumber expects milliseconds since epoch in UTC but represents the
+    // value in the user's local timezone. Passing the raw timestamp avoids
+    // double-applying the timezone offset.
+    elem.valueAsNumber = d.getTime();
 }
 
 function applyDateRange() {
