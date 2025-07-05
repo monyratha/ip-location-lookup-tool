@@ -54,6 +54,19 @@ def init_db():
         """
     )
 
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS app_settings (
+            id INTEGER PRIMARY KEY CHECK(id = 1),
+            default_table TEXT,
+            default_ip_column TEXT
+        )
+        """
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO app_settings (id, default_table, default_ip_column) VALUES (1, '', 'client_ip')"
+    )
+
     # List of required columns and their SQLite types
     required_columns = {
         "status": "TEXT",
@@ -265,8 +278,44 @@ def mysql_lookup_page():
     connections = conn.execute(
         'SELECT id, name, database FROM mysql_connections'
     ).fetchall()
+    settings_row = conn.execute(
+        'SELECT default_table, default_ip_column FROM app_settings WHERE id=1'
+    ).fetchone()
     conn.close()
-    return render_template('mysql_lookup.html', mysql_connections=connections)
+    default_table = settings_row['default_table'] if settings_row else ''
+    default_ip_col = settings_row['default_ip_column'] if settings_row else 'client_ip'
+    return render_template(
+        'mysql_lookup.html',
+        mysql_connections=connections,
+        default_table=default_table,
+        default_ip_col=default_ip_col,
+    )
+
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings_page():
+    """Configure default table and IP column for MySQL lookups."""
+    conn = sqlite3.connect(DB_FILE)
+    if request.method == 'POST':
+        conn.execute(
+            'UPDATE app_settings SET default_table=?, default_ip_column=? WHERE id=1',
+            (
+                request.form.get('default_table', ''),
+                request.form.get('default_ip_column', 'client_ip'),
+            ),
+        )
+        conn.commit()
+    row = conn.execute(
+        'SELECT default_table, default_ip_column FROM app_settings WHERE id=1'
+    ).fetchone()
+    conn.close()
+    default_table = row[0] if row else ''
+    default_ip_col = row[1] if row else 'client_ip'
+    return render_template(
+        'settings.html',
+        default_table=default_table,
+        default_ip_col=default_ip_col,
+    )
 
 
 @app.route('/stats')
@@ -579,6 +628,7 @@ def fetch_mysql():
             f"data: {json.dumps({'type': 'error', 'message': 'Invalid end time'})}\n\n",
             mimetype='text/event-stream',
         )
+
 
     def generate():
         db_conn = sqlite3.connect(DB_FILE)
