@@ -53,6 +53,7 @@
             <div class="progress-bar" id="mysqlProgressBar" style="width:0%;"></div>
         </div>
         <div id="mysqlProgressText" class="mt-1"></div>
+        <pre id="mysqlLog" class="bg-dark text-white p-2 mt-2" style="display:none; height:200px; overflow:auto; font-size:0.9rem;"></pre>
     </div>
     {% else %}
     <p>No MySQL connections configured. <a href="{{ url_for('manage_connections') }}">Add one</a>.</p>
@@ -137,9 +138,12 @@ async function fetchMySQL() {
     const progress = document.getElementById('mysqlProgress');
     const bar = document.getElementById('mysqlProgressBar');
     const text = document.getElementById('mysqlProgressText');
+    const log = document.getElementById('mysqlLog');
     bar.style.width = '0%';
     progress.querySelector('.progress').style.display = 'block';
     text.textContent = 'Starting...';
+    log.style.display = 'block';
+    log.textContent = '';
 
     const response = await fetch('/fetch-mysql', {
         method: 'POST',
@@ -174,6 +178,9 @@ async function fetchMySQL() {
                     text.innerHTML = `Done! <a href="/view/${data.filename}">${data.filename}</a>`;
                 } else if (data.type === 'error') {
                     text.textContent = `Error: ${data.message}`;
+                } else if (data.type === 'log') {
+                    log.textContent += data.message + '\n';
+                    log.scrollTop = log.scrollHeight;
                 }
             }
         }

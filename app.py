@@ -729,6 +729,7 @@ def fetch_mysql():
             return
 
         try:
+            yield f"data: {json.dumps({'type': 'log', 'message': 'Connecting to MySQL...'})}\n\n"
             mysql_db = pymysql.connect(
                 host=row['host'],
                 port=row['port'],
@@ -737,6 +738,7 @@ def fetch_mysql():
                 database=row['database'],
                 cursorclass=pymysql.cursors.Cursor,
             )
+            yield f"data: {json.dumps({'type': 'log', 'message': 'Connected to MySQL'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
@@ -744,6 +746,7 @@ def fetch_mysql():
         cur = mysql_db.cursor()
         try:
             query = f'SELECT {ip_column}, COUNT(*) as ip_count FROM {table}'
+            yield f"data: {json.dumps({'type': 'log', 'message': 'Running query'})}\n\n"
             params = []
             if start_time and end_time:
                 query += ' WHERE created_time >= %s AND created_time < %s'
@@ -752,6 +755,7 @@ def fetch_mysql():
             cur.execute(query, params)
             rows = cur.fetchall()
             ips = [(str(r[0]), int(r[1])) for r in rows]
+            yield f"data: {json.dumps({'type': 'log', 'message': f'Query returned {len(ips)} rows'})}\n\n"
         except Exception as e:
             mysql_db.close()
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
@@ -765,6 +769,8 @@ def fetch_mysql():
         filename = f"mysql_{conn_name}_{table}_{int(time.time())}.csv"
         filepath = os.path.join('results', filename)
 
+        yield f"data: {json.dumps({'type': 'log', 'message': f'Writing to {filename}'})}\n\n"
+
         with open(filepath, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['num', 'client_ip', 'ip_count', 'country', 'region', 'city'])
@@ -774,7 +780,9 @@ def fetch_mysql():
                 processed += 1
                 if processed % 5 == 0 or processed == total_ips:
                     yield f"data: {json.dumps({'type': 'progress', 'processed': processed, 'total': total_ips})}\n\n"
+                    yield f"data: {json.dumps({'type': 'log', 'message': f'Processed {processed}/{total_ips}'})}\n\n"
 
+        yield f"data: {json.dumps({'type': 'log', 'message': 'Completed processing'})}\n\n"
         yield f"data: {json.dumps({'type': 'complete', 'filename': filename})}\n\n"
 
     return Response(generate(), mimetype='text/event-stream')
