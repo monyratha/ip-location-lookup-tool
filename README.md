@@ -24,6 +24,10 @@ configured you can fetch IP data from any table on the main page. When fetching
 from MySQL you can also specify a start and end time to run a query that counts
 IP occurrences between those timestamps.
 
+Results generated from the DB lookup now include the configured connection name
+in the filename (e.g. `mysql_myconn_table_timestamp.csv`) so it's easy to see
+where each file originated.
+
 Use the `/settings` page to change the default table/column and tweak the
 thresholds used for dynamic IP classification without editing `.env`.
 

@@ -761,7 +761,8 @@ def fetch_mysql():
         total_ips = len(ips)
         processed = 0
         os.makedirs('results', exist_ok=True)
-        filename = f"mysql_{table}_{int(time.time())}.csv"
+        conn_name = re.sub(r'[^A-Za-z0-9]+', '_', row['name']).strip('_')
+        filename = f"mysql_{conn_name}_{table}_{int(time.time())}.csv"
         filepath = os.path.join('results', filename)
 
         with open(filepath, 'w', newline='') as f:
