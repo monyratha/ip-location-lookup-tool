@@ -629,13 +629,6 @@ def fetch_mysql():
             mimetype='text/event-stream',
         )
 
-    settings_conn = sqlite3.connect(DB_FILE)
-    settings_conn.execute(
-        'UPDATE app_settings SET default_table=?, default_ip_column=? WHERE id=1',
-        (table, ip_column),
-    )
-    settings_conn.commit()
-    settings_conn.close()
 
     def generate():
         db_conn = sqlite3.connect(DB_FILE)
