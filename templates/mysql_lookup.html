@@ -36,11 +36,11 @@
         </div>
         <div class="col-md-4">
             <label class="form-label">Start time</label>
-            <input type="datetime-local" id="mysqlStart" class="form-control">
+            <input type="text" id="mysqlStart" class="form-control" placeholder="YYYY-MM-DD HH:MM:SS">
         </div>
         <div class="col-md-4">
             <label class="form-label">End time</label>
-            <input type="datetime-local" id="mysqlEnd" class="form-control">
+            <input type="text" id="mysqlEnd" class="form-control" placeholder="YYYY-MM-DD HH:MM:SS">
         </div>
     </div>
     <div class="row g-2 mb-2">
@@ -59,12 +59,17 @@
     {% endif %}
 </div>
 <script>
-function setDateInput(elem, d) {
-    // Format the date in the user's local timezone so the displayed
-    // value matches the expected local time regardless of offset.
+function formatForDB(d) {
+    // Convert a Date to YYYY-MM-DD HH:MM:SS in the browser's local timezone
     const offsetMs = d.getTimezoneOffset() * 60000;
-    const localISO = new Date(d.getTime() - offsetMs).toISOString().slice(0, 16);
-    elem.value = localISO;
+    return new Date(d.getTime() - offsetMs)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
+}
+
+function setDateInput(elem, d) {
+    elem.value = formatForDB(d);
 }
 
 function applyDateRange() {
@@ -125,8 +130,8 @@ async function fetchMySQL() {
             connection_id: conn,
             table: table,
             ip_column: col,
-            start_time: start ? start.replace('T', ' ') + ':00' : null,
-            end_time: end ? end.replace('T', ' ') + ':00' : null
+            start_time: start || null,
+            end_time: end || null
         })
     });
 
