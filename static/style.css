@@ -25,3 +25,7 @@ a {
 #mysqlProgress {
     max-width: 400px;
 }
+
+#mysqlLog {
+    max-width: 400px;
+}
