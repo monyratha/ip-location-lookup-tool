@@ -54,6 +54,7 @@
         </div>
         <div id="mysqlProgressText" class="mt-1"></div>
     </div>
+    {% else %}
     <p>No MySQL connections configured. <a href="{{ url_for('manage_connections') }}">Add one</a>.</p>
     {% endif %}
 </div>
@@ -67,7 +68,7 @@ function applyDateRange() {
     switch(range) {
         case 'today':
             start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            end = new Date(start.getTime() + 86400000);
+            end = now;
             break;
         case 'yesterday':
             start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
