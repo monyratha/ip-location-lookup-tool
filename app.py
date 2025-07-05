@@ -255,13 +255,18 @@ def get_ip_location(ip, use_delay=False):
 
 @app.route('/')
 def index():
+    return render_template('index.html')
+
+
+@app.route('/mysql-lookup')
+def mysql_lookup_page():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     connections = conn.execute(
         'SELECT id, name, database FROM mysql_connections'
     ).fetchall()
     conn.close()
-    return render_template('index.html', mysql_connections=connections)
+    return render_template('mysql_lookup.html', mysql_connections=connections)
 
 
 @app.route('/stats')
