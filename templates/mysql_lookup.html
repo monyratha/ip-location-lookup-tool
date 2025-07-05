@@ -59,6 +59,12 @@
     {% endif %}
 </div>
 <script>
+function toInputValue(d) {
+    const pad = n => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+        `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function applyDateRange() {
     const range = document.getElementById('dateRange').value;
     const startInput = document.getElementById('mysqlStart');
@@ -87,8 +93,8 @@ function applyDateRange() {
             endInput.disabled = false;
             return;
     }
-    startInput.value = start.toISOString().slice(0,16);
-    endInput.value = end.toISOString().slice(0,16);
+    startInput.value = toInputValue(start);
+    endInput.value = toInputValue(end);
     startInput.disabled = true;
     endInput.disabled = true;
 }
