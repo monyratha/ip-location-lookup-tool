@@ -13,6 +13,20 @@
             <input type="text" name="default_ip_column" class="form-control" placeholder="client_ip" value="{{ default_ip_col }}">
         </div>
     </div>
+    <div class="row g-3 mb-2">
+        <div class="col-md-4">
+            <label class="form-label">High traffic threshold</label>
+            <input type="number" name="high_traffic_threshold" class="form-control" value="{{ high_traffic_threshold }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Subnet IP threshold</label>
+            <input type="number" name="subnet_ip_threshold" class="form-control" value="{{ subnet_ip_threshold }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Subnet view threshold</label>
+            <input type="number" name="subnet_view_threshold" class="form-control" value="{{ subnet_view_threshold }}">
+        </div>
+    </div>
     <div class="row g-2 mb-2">
         <div class="col-md-2 ms-auto">
             <button type="submit" class="btn btn-primary w-100">Save</button>
