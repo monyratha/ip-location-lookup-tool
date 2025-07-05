@@ -338,6 +338,20 @@ def settings_page():
     row = conn.execute(
         'SELECT default_table, default_ip_column, high_traffic_threshold, subnet_ip_threshold, subnet_view_threshold FROM app_settings WHERE id=1'
     ).fetchone()
+
+    total_cursor = conn.execute('SELECT COUNT(*) FROM ip_cache')
+    total_ips = total_cursor.fetchone()[0]
+
+    unknown_cursor = conn.execute(
+        'SELECT COUNT(*) FROM ip_cache WHERE country = "Unknown" OR region = "Unknown" OR city = "Unknown"'
+    )
+    unknown_count = unknown_cursor.fetchone()[0]
+
+    error_cursor = conn.execute(
+        'SELECT COUNT(*) FROM ip_cache WHERE country = "Error" OR region = "Error" OR city = "Error"'
+    )
+    error_count = error_cursor.fetchone()[0]
+
     conn.close()
     default_table = row[0] if row else ''
     default_ip_col = row[1] if row else 'client_ip'
@@ -351,6 +365,9 @@ def settings_page():
         high_traffic_threshold=high_traffic,
         subnet_ip_threshold=subnet_ip,
         subnet_view_threshold=subnet_view,
+        total_ips=total_ips,
+        unknown_count=unknown_count,
+        error_count=error_count,
     )
 
 

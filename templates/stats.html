@@ -14,8 +14,6 @@
     a { color: #007cba; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .nav-links { display: flex; gap: 15px; }
-    .clean-section { margin: 30px 0; }
-    .clean-btn { margin: 5px; }
 </style>
 {% endblock %}
 {% block content %}
@@ -71,71 +69,5 @@
     </div>
 </div>
 
-<div class="clean-section card p-4 shadow-sm bg-light border border-danger">
-    <h3>⚠️ Danger Zone</h3>
-    <p>Fix problematic cache entries or clean all data (cleaning cannot be undone!)</p>
-    <button onclick="fixCache()" class="btn btn-success clean-btn">Fix Unknown/Error IPs</button>
-    <button onclick="cleanCache()" class="btn btn-danger clean-btn">Clean All Cache ({{ total_ips }} records)</button>
-    <button onclick="cleanResults()" class="btn btn-danger clean-btn">Clean All Processed Files</button>
-</div>
 
-<script>
-    async function cleanCache() {
-        if (!confirm('Are you sure you want to delete ALL cached IP data? This cannot be undone!')) return;
-
-        try {
-            const response = await fetch('/clean-cache', { method: 'POST' });
-            if (response.ok) {
-                alert('Cache cleaned successfully!');
-                location.reload();
-            } else {
-                const error = await response.json();
-                alert(`Error: ${error.error}`);
-            }
-        } catch (error) {
-            alert(`Error: ${error.message}`);
-        }
-    }
-
-    async function fixCache() {
-        if (!confirm('This will re-lookup all IPs with Unknown/Error data. Continue?')) return;
-
-        const btn = event.target;
-        btn.disabled = true;
-        btn.textContent = 'Fixing...';
-
-        try {
-            const response = await fetch('/fix-cache', { method: 'POST' });
-            const data = await response.json();
-
-            if (response.ok) {
-                alert(`Fixed ${data.fixed} out of ${data.total} problematic IPs!`);
-                location.reload();
-            } else {
-                alert(`Error: ${data.error}`);
-            }
-        } catch (error) {
-            alert(`Error: ${error.message}`);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Fix Unknown/Error IPs';
-        }
-    }
-
-    async function cleanResults() {
-        if (!confirm('Are you sure you want to delete ALL processed files? This cannot be undone!')) return;
-
-        try {
-            const response = await fetch('/clean-results', { method: 'POST' });
-            if (response.ok) {
-                alert('Processed files cleaned successfully!');
-            } else {
-                const error = await response.json();
-                alert(`Error: ${error.error}`);
-            }
-        } catch (error) {
-            alert(`Error: ${error.message}`);
-        }
-    }
-</script>
 {% endblock %}
