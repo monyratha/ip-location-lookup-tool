@@ -72,7 +72,7 @@ function setDateInput(elem, d) {
     elem.value = formatForDB(d);
 }
 
-function applyDateRange() {
+function applyDateRange(useSaved=false) {
     const range = document.getElementById('dateRange').value;
     const startInput = document.getElementById('mysqlStart');
     const endInput = document.getElementById('mysqlEnd');
@@ -98,6 +98,12 @@ function applyDateRange() {
         default:
             startInput.disabled = false;
             endInput.disabled = false;
+            if (useSaved) {
+                const savedStart = localStorage.getItem('mysql_start_time');
+                const savedEnd = localStorage.getItem('mysql_end_time');
+                if (savedStart) startInput.value = savedStart;
+                if (savedEnd) endInput.value = savedEnd;
+            }
             return;
     }
     setDateInput(startInput, start);
@@ -108,13 +114,29 @@ function applyDateRange() {
 
 document.getElementById('dateRange').addEventListener('change', applyDateRange);
 
+document.addEventListener('DOMContentLoaded', () => {
+    const savedTable = localStorage.getItem('mysql_table');
+    if (savedTable) document.getElementById('mysqlTable').value = savedTable;
+
+    const savedRange = localStorage.getItem('mysql_date_range') || 'today';
+    document.getElementById('dateRange').value = savedRange;
+    applyDateRange(true);
+});
+
 async function fetchMySQL() {
     const conn = document.getElementById('mysqlConn').value;
     const table = document.getElementById('mysqlTable').value;
     const col = document.getElementById('mysqlIpCol').value || 'client_ip';
     const start = document.getElementById('mysqlStart').value;
     const end = document.getElementById('mysqlEnd').value;
+    const range = document.getElementById('dateRange').value;
     if (!conn || !table) return;
+
+    // Remember selections for next visit
+    localStorage.setItem('mysql_table', table);
+    localStorage.setItem('mysql_date_range', range);
+    localStorage.setItem('mysql_start_time', start);
+    localStorage.setItem('mysql_end_time', end);
 
     const progress = document.getElementById('mysqlProgress');
     const bar = document.getElementById('mysqlProgressBar');
