@@ -59,9 +59,8 @@
     {% endif %}
 </div>
 <script>
-function toInputValue(d) {
-    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-    return local.toISOString().slice(0, 16);
+function setDateInput(elem, d) {
+    elem.valueAsNumber = d.getTime() - d.getTimezoneOffset() * 60000;
 }
 
 function applyDateRange() {
@@ -92,8 +91,8 @@ function applyDateRange() {
             endInput.disabled = false;
             return;
     }
-    startInput.value = toInputValue(start);
-    endInput.value = toInputValue(end);
+    setDateInput(startInput, start);
+    setDateInput(endInput, end);
     startInput.disabled = true;
     endInput.disabled = true;
 }
